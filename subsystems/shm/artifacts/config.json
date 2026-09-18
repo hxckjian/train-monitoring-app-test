@@ -1,0 +1,56 @@
+{
+  "model_version": "shm-v1",
+  "method": "rainflow counting (ASTM E1049) + Miner linear cumulative damage, S-N constants fitted to the training labels",
+  "m": 5.03,
+  "log_c": 1.0636589001137924,
+  "log_ref": 4.55685110634092,
+  "C_in_stress_amplitude_units": 798375540.4570031,
+  "n_training_files": 64,
+  "damage_range_train": [
+    0.028620288,
+    0.928338975
+  ],
+  "validation": {
+    "split": "5-fold over files, seed 20260918; m and C fitted inside each fold only",
+    "metric": "max(0, 1 - MAPE) (SHM_Info_Kit.md Section 4)",
+    "mean_score": 0.9729043158919527,
+    "std_score": 0.006710313358806588,
+    "fixed_m5_mean_score": 0.9729051617287963,
+    "m_range_across_folds": [
+      5.01,
+      5.03
+    ],
+    "folds": [
+      {
+        "fold": 1,
+        "n_files": 13,
+        "m": 5.025,
+        "score": 0.972969122275061
+      },
+      {
+        "fold": 2,
+        "n_files": 13,
+        "m": 5.025,
+        "score": 0.9743400703455727
+      },
+      {
+        "fold": 3,
+        "n_files": 13,
+        "m": 5.03,
+        "score": 0.9643445814017294
+      },
+      {
+        "fold": 4,
+        "n_files": 13,
+        "m": 5.01,
+        "score": 0.9685316588832352
+      },
+      {
+        "fold": 5,
+        "n_files": 12,
+        "m": 5.03,
+        "score": 0.9843361465541653
+      }
+    ]
+  }
+}

@@ -21,6 +21,17 @@ conda run -n nebula-ps3 --no-capture-output python <script>
 
 ---
 
+## 0. Launch
+
+```bash
+conda activate nebula-ps3
+streamlit run app/streamlit_app.py      # http://localhost:8501
+```
+
+Adding Rail or ACV: build `subsystems/<key>/` with `predict()` + `analyze()`
+following Door/SHM, then set `package="subsystems.<key>"` in
+`core/registry.py`. The app picks it up.
+
 ## 1. Status at a glance — 2026-09-18
 
 | Piece | State |
@@ -29,10 +40,10 @@ conda run -n nebula-ps3 --no-capture-output python <script>
 | Isolated conda env | DONE — `nebula-ps3` + Jupyter kernel |
 | All four scoring formulas | DONE — `scoring/metrics.py`, 28 tests pass |
 | **Door subsystem** | **DONE** — IoU-weighted F1 0.9909 ± 0.0182, smoke test 15/15 |
-| **SHM** | **SOLVED** — m = 5.025, CV score 0.9728 ± 0.0070. Needs packaging only |
+| **SHM** | **DONE** — `subsystems/shm/`, 0.9729 ± 0.0067, smoke test 10/10 |
 | Rail | Not started |
 | ACV | Schema fully profiled; no model yet |
-| Streamlit app | Not started |
+| **Streamlit app** | **DONE** — `app/`, 7 pages, builds predictions.zip. See `app/README.md` |
 | Design system | Published |
 | Review of teammate's build | DONE — findings in section 6 |
 
@@ -307,8 +318,8 @@ forbids that.
 
 ## 7. Next actions, in order
 
-1. **Package SHM as `subsystems/shm/`** — the modelling is done (0.9728), only
-   the Door-style package contract remains. Fastest remaining win by far.
+1. **Run the app:** `streamlit run app/streamlit_app.py`. Door and SHM are live;
+   Submission page builds a validated predictions.zip (currently door + shm).
 2. **Rail** — FFT band energies converted to the **wavelength** domain using
    measured speed, per side, class-weighted, stratified repeated CV grouped by
    file. This is the lever nobody else is using.

@@ -1,0 +1,18 @@
+[theme]
+base = "light"
+primaryColor = "#0095ec"
+backgroundColor = "#f7f8fa"
+secondaryBackgroundColor = "#eef1f5"
+textColor = "#10151c"
+font = "sans serif"
+
+[server]
+headless = true
+# A single Rail test file is ~17 MB; allow a handful per upload.
+maxUploadSize = 400
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false

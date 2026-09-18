@@ -1,0 +1,11 @@
+# Runtime dependencies for the app and all subsystem packages.
+# The full dev environment (Jupyter, pytest) is environment.yml.
+numpy
+pandas
+scipy
+scikit-learn
+joblib
+openpyxl
+rainflow
+streamlit>=1.46
+plotly
