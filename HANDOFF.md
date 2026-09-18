@@ -76,7 +76,8 @@ python -m ipykernel install --user --name nebula-ps3 --display-name "Python (neb
 
 git clone --depth 1 https://github.com/aochinwen/NebulaX-Hackathon-ProblemStatement.git repo
 
-python -m pytest tests/ -q                       # expect 28 passed
+python -m pytest tests/ -q                       # expect 39 passed
+python -m subsystems.shm.tests.smoke_test        # expect 10/10 PASS
 python -m subsystems.door.train                  # expect 0.9909 +/- 0.0182
 python -m subsystems.door.tests.smoke_test       # expect 15/15 PASS
 ```
@@ -134,7 +135,7 @@ Interface: `from subsystems.door.predict import predict; predict([uploaded_file]
 **Caveat to keep honest:** 0.9909 is one door, one recording. Treat as an upper
 bound; a different door could be materially harder.
 
-### 4.3 SHM — PARTIALLY DONE
+### 4.3 SHM — COMPLETE, `subsystems/shm/`
 
 **Done:** `scripts/shm_rainflow_cache.py` has rainflow-counted all 80 files and
 cached them to `artifacts_cache/shm_{train,test}_cycles.npz` (~95 s total).
@@ -180,12 +181,7 @@ Three things worth understanding:
   subsystem score. That gap is the whole argument for this approach, and it is
   worth putting in the write-up verbatim.
 
-**Remaining work is packaging only:** wrap this as `subsystems/shm/` following
-the exact contract in `subsystems/door/` (features.py / train.py / predict.py /
-tests/smoke_test.py / artifacts / README.md), save `m` and `C` as artifacts, and
-emit `shm_predictions.csv` for the 16 test files from the already-cached
-`artifacts_cache/shm_test_cycles.npz`. Worth trying `m` fixed at exactly 5.0 —
-it is cleaner to defend and may generalise slightly better.
+**Packaged** as `subsystems/shm/` (see its README): 0.9729 ± 0.0067 with m and C fitted in-fold; m pinned at 5.0 gives the same mean with less spread. Smoke test 10/10. The largest 0.1% of stress cycles cause ~99% of the damage.
 
 **The method, and why it works:** the Info Kit states outright that the
 reference damage values were produced by rainflow + Miner. So
