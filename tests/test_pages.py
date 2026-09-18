@@ -21,6 +21,9 @@ PAGES = ["", "fleet", "door", "shm", "rail", "acv", "monitor", "validation", "su
 def _run(page: str, tmp_events: Path) -> AppTest:
     os.environ["NEBULA_TEST_PAGE"] = page
     os.environ["NEBULA_EVENTS_PATH"] = str(tmp_events)
+    # the app runs in this process, so point the already-imported module at the temp log too
+    events.EVENTS_PATH = Path(tmp_events)
+    events.ACTIONS_PATH = Path(tmp_events).with_name(Path(tmp_events).stem + "_actions.jsonl")
     at = AppTest.from_file(str(ROOT / "app" / "streamlit_app.py"), default_timeout=120)
     at.run()
     return at
@@ -60,8 +63,28 @@ def test_page_renders_with_session_results(page, tmp_path):
     from core import cache
     os.environ["NEBULA_TEST_PAGE"] = page
     os.environ["NEBULA_EVENTS_PATH"] = str(tmp_path / "events.jsonl")
+    events.EVENTS_PATH = tmp_path / "events.jsonl"
+    events.ACTIONS_PATH = tmp_path / "events_actions.jsonl"
     at = AppTest.from_file(str(ROOT / "app" / "streamlit_app.py"), default_timeout=180)
     for k, v in (cache.load() or {}).items():
         at.session_state[f"{k}_result"] = v
     at.run()
     assert not _errors(at), _errors(at)
+
+
+@pytest.mark.skipif(not (ROOT / "predictions" / "analysis_cache.pkl").exists(), reason="no cached run")
+def test_dataset_load_and_remove_buttons(tmp_path):
+    """Manage datasets: load the competition run, then remove it, with no exception and
+    the data-source selection following each action."""
+    at = _run("", tmp_path / "events.jsonl")
+    assert not _errors(at)
+    at.button(key="ds_load_cache").click().run()
+    assert not _errors(at), _errors(at)
+    assert at.session_state["data_source"] == "Competition test data (cached run)"
+    assert len(events.load()) > 0
+    rm = [b for b in at.button if str(b.key).startswith("ds_rm_")]
+    assert rm, "remove button missing"
+    rm[0].click().run()
+    assert not _errors(at), _errors(at)
+    assert at.session_state["data_source"].startswith("Live only")
+    assert len(events.load()) == 0

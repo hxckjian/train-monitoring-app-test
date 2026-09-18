@@ -65,8 +65,13 @@ def txt(v, default: str = "—") -> str:
     return str(v) if str(v) not in ("", "nan", "None") else default
 
 
-def plot(fig) -> None:
-    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+_plot_n = {"n": 0}
+
+
+def plot(fig, key: str | None = None) -> None:
+    """Every chart gets its own key, so two empty figures on one page can never collide."""
+    _plot_n["n"] += 1
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key=key or f"fig_{_plot_n['n']}")
 
 
 def as_files(payload: list[tuple[str, bytes]]) -> list[io.BytesIO]:
@@ -190,6 +195,12 @@ def data_source_bar() -> tuple[str, "pd.DataFrame"]:
     names = list(ds["dataset"]) if len(ds) else []
     options = [LIVE_ONLY] + names + ([EVERYTHING] if names else [])
     cached_available = result_cache.CACHE_PATH.exists() and "Competition test data (cached run)" not in names
+    # a button below may ask for a different selection: apply it before the widget exists
+    wanted = st.session_state.pop("_select_source", None)
+    if wanted in options:
+        st.session_state["data_source"] = wanted
+    elif st.session_state.get("data_source") not in options:
+        st.session_state["data_source"] = LIVE_ONLY
     c1, c2 = st.columns([3, 1.2], gap="medium")
     with c1:
         choice = st.selectbox("Data source", options, key="data_source",
@@ -206,7 +217,7 @@ def data_source_bar() -> tuple[str, "pd.DataFrame"]:
                     for k, v in cached.items():
                         rows += event_log.events_from_result(k, v, {"source": "run", "dataset": "Competition test data (cached run)"})
                     a, sk = event_log.append_unique(rows)
-                    st.session_state["data_source"] = "Competition test data (cached run)"
+                    st.session_state["_select_source"] = "Competition test data (cached run)"
                     st.rerun()
             if len(ds):
                 for r in ds.itertuples():
@@ -219,7 +230,7 @@ def data_source_bar() -> tuple[str, "pd.DataFrame"]:
                             event_log.remove_dataset(r.dataset)
                             for k in SUBSYSTEMS:
                                 st.session_state.pop(f"{k}_result", None)
-                            st.session_state["data_source"] = LIVE_ONLY
+                            st.session_state["_select_source"] = LIVE_ONLY
                             st.rerun()
             else:
                 st.caption("No datasets yet. Analyse a file on any subsystem page, or drop one on the dashboard.")
