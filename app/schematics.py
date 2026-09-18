@@ -13,6 +13,7 @@ from html import escape
 import pandas as pd
 
 RAMP = ["#1b4a6b", "#1f6f9a", "#2e8fd4", "#d68a00", "#e0434f"]   # cool -> hot
+GLYPH = {"alert": "✕", "watch": "◐", "ok": "●", "unknown": "—"}      # the console's one severity alphabet
 
 
 def _ramp(v: float) -> str:
@@ -45,6 +46,16 @@ def acv_train(ranking: list[str], scores: dict, hot: dict | None, unobserved: li
             s = scores.get(c)
             sub = (f"{hot.get(c, 0):.1%} hot · " if hot else "") + (f"{s:+.2f} °C" if isinstance(s, (int, float)) else "")
         out.append(_car(x, 30, w, h, fill, f"Car {c} · #{rank}", sub))
+        # airflow: three waves above the roof unit; the suspect car's air is warm and sluggish
+        warm = rank == 1 and c not in unobserved
+        col = "#e0434f" if warm else "#2e8fd4"
+        dur = "2.6s" if warm else "1.3s"
+        for k in range(3):
+            wx = x + 20 + k * 26
+            out.append(f'<path d="M{wx} 26 q4 -5 8 0 t8 0" fill="none" stroke="{col}" stroke-width="2" opacity=".0">'
+                       f'<animate attributeName="opacity" values="0;.9;0" dur="{dur}" begin="{k * 0.3}s" repeatCount="indefinite"/>'
+                       f'<animateTransform attributeName="transform" type="translate" values="0 4;0 -6" dur="{dur}" begin="{k * 0.3}s" repeatCount="indefinite"/></path>')
+        out.append(f'<text x="{x + w - 10}" y="44" text-anchor="end" font-size="13" fill="{"#e0434f" if rank == 1 else "#8b96a3"}">{GLYPH["alert"] if rank == 1 else GLYPH["ok"]}</text>')
         # bogies
         for bx in (x + 18, x + w - 18):
             out.append(f'<circle cx="{bx}" cy="104" r="6" fill="#161d26" stroke="#8b96a3"/>')
@@ -77,8 +88,12 @@ def rail_train(grid: pd.DataFrame, prediction: str) -> str:
     # rails
     y1 = 60 if prediction == "Side I" else None
     for y, side in ((48, "Side I"), (144, "Side II")):
-        col = "#e0434f" if prediction == side else "#3a4756"
-        out.append(f'<line x1="70" y1="{y}" x2="{total - 20}" y2="{y}" stroke="{col}" stroke-width="{4 if prediction == side else 2}" stroke-dasharray="{"6 4" if prediction == side else "0"}"/>')
+        hit = prediction == side
+        col = "#e0434f" if hit else "#3a4756"
+        out.append(f'<line x1="70" y1="{y}" x2="{total - 20}" y2="{y}" stroke="{col}" stroke-width="{4 if hit else 2}" stroke-dasharray="{"6 4" if hit else "0"}">'
+                   + (f'<animate attributeName="stroke-dashoffset" values="0;-20" dur="1s" repeatCount="indefinite"/>'
+                      f'<animate attributeName="opacity" values="1;.45;1" dur="1.6s" repeatCount="indefinite"/>' if hit else "") + '</line>')
+        out.append(f'<text x="{total - 12}" y="{y + 5}" text-anchor="end" font-size="13" fill="{col if hit else "#16a97a"}">{GLYPH["alert"] if hit else GLYPH["ok"]}</text>')
     out.append('</svg>')
     return "".join(out)
 
@@ -92,15 +107,44 @@ def door_cycle(row: pd.Series) -> str:
            '<text x="16" y="16" font-size="11" fill="#8b96a3" letter-spacing="1.5">DOOR LEAF · MOTOR · ONE CYCLE</text>',
            # door frame and leaf
            '<rect x="16" y="30" width="220" height="100" rx="6" fill="#0a0e13" stroke="#3a4756"/>',
-           f'<rect x="{30 if row["operation"] == "Close" else 120}" y="38" width="100" height="84" rx="4" fill="{col}" fill-opacity=".85"/>',
+           f'<rect x="{30 if row["operation"] == "Close" else 120}" y="38" width="100" height="84" rx="4" fill="{col}" fill-opacity=".85">'
+           f'<animate attributeName="x" values="{"120;30;30" if row["operation"] == "Close" else "30;120;120"}" dur="{max(1.2, float(row["duration_s"]) * 0.6):.1f}s" repeatCount="indefinite"/></rect>',
+           f'<text x="220" y="52" text-anchor="end" font-size="14" fill="{col}">{GLYPH["alert" if abnormal else "ok"]}</text>',
            f'<text x="126" y="140" text-anchor="middle" font-size="10" fill="#b3bdc9">leaf {row["operation"].lower()}s · travel {travel:.0f}</text>',
            # motor + values
            '<circle cx="300" cy="80" r="26" fill="#161d26" stroke="#8b96a3"/>',
            '<text x="300" y="84" text-anchor="middle" font-size="10" fill="#e8edf3">motor</text>',
-           f'<line x1="236" y1="80" x2="274" y2="80" stroke="{col}" stroke-width="3"/>',
+           f'<line x1="236" y1="80" x2="274" y2="80" stroke="{col}" stroke-width="3">'
+           + ('<animate attributeName="opacity" values="1;.3;1" dur="0.8s" repeatCount="indefinite"/>' if abnormal else "") + '</line>',
            f'<text x="350" y="56" font-size="13" font-weight="600" fill="#e8edf3">{escape(str(row["prediction"]))}</text>',
            f'<text x="350" y="78" font-size="12" fill="#b3bdc9">sustained current {row["cur_mean_mid"]:.0f} mA · P(abnormal) {row["p_abnormal"]:.0%}</text>',
            f'<text x="350" y="98" font-size="12" fill="#b3bdc9">duration {row["duration_s"]:.2f} s · current per back-EMF {row.get("cur_per_emf", float("nan")):.2f}</text>',
            f'<text x="350" y="118" font-size="11" fill="#8b96a3">{escape(str(row["start_time"]))}</text>',
            '</svg>']
     return "".join(out)
+
+
+def shm_gauge(file_id: str, damage: float, segments_left: float) -> str:
+    """An arc from 0 to 1 with the needle at D. Watch band 0.5, alert 0.8, failure at 1."""
+    import math
+    d = max(0.0, min(1.0, damage))
+    state = "alert" if d >= 0.8 else "watch" if d >= 0.5 else "ok"
+    col = {"alert": "#e0434f", "watch": "#d68a00", "ok": "#16a97a"}[state]
+
+    def arc(a0, a1, color, width=14):
+        r, cx, cy = 90, 130, 120
+        x0, y0 = cx + r * math.cos(math.pi * (1 - a0)), cy - r * math.sin(math.pi * (1 - a0))
+        x1, y1 = cx + r * math.cos(math.pi * (1 - a1)), cy - r * math.sin(math.pi * (1 - a1))
+        return f'<path d="M{x0:.1f} {y0:.1f} A{r} {r} 0 0 1 {x1:.1f} {y1:.1f}" fill="none" stroke="{color}" stroke-width="{width}" stroke-linecap="butt"/>'
+    ang = math.pi * (1 - d)
+    nx, ny = 130 + 78 * math.cos(ang), 120 - 78 * math.sin(ang)
+    return ("".join([
+        '<svg viewBox="0 0 260 150" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fatigue damage gauge">',
+        arc(0.0, 0.5, "#16a97a"), arc(0.5, 0.8, "#d68a00"), arc(0.8, 1.0, "#e0434f"),
+        f'<line x1="130" y1="120" x2="{nx:.1f}" y2="{ny:.1f}" stroke="#e8edf3" stroke-width="3" stroke-linecap="round">'
+        f'<animate attributeName="x2" from="40" to="{nx:.1f}" dur="1s" fill="freeze"/><animate attributeName="y2" from="120" to="{ny:.1f}" dur="1s" fill="freeze"/></line>',
+        '<circle cx="130" cy="120" r="5" fill="#e8edf3"/>',
+        f'<text x="130" y="100" text-anchor="middle" font-size="22" font-weight="600" fill="{col}">{d:.2f} {GLYPH[state]}</text>',
+        f'<text x="130" y="142" text-anchor="middle" font-size="11" fill="#8b96a3">{escape(file_id)} · {d:.0%} of fatigue life · {segments_left:.1f} segments left at this rate</text>',
+        '<text x="34" y="140" font-size="10" fill="#8b96a3">0</text><text x="220" y="140" font-size="10" fill="#8b96a3">D = 1</text>',
+        '</svg>']))

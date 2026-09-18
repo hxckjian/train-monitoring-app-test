@@ -74,6 +74,21 @@ from core.submission import SCHEMAS, build_predictions_zip, validate_submission 
 from theme import T, css  # noqa: E402,F811
 
 st.set_page_config(page_title="Nebula Wayside", page_icon="🚆", layout="wide")
+
+
+def _resolve_theme() -> str:
+    """Auto follows the viewer's system setting (day or night); the hero toggle overrides it."""
+    pick = st.session_state.get("theme_pick", "Auto")
+    if pick in ("Day", "Night"):
+        return "light" if pick == "Day" else "dark"
+    try:
+        return "light" if st.context.theme.type == "light" else "dark"
+    except Exception:
+        return "dark"
+
+
+_theme.set_theme(_resolve_theme())
+_tokens_cache_key = _theme.THEME
 st.markdown(css(), unsafe_allow_html=True)
 
 IDENTITY = {"door": "subsystem-door", "shm": "subsystem-shm",
@@ -271,12 +286,10 @@ def data_source_bar() -> tuple[str, "pd.DataFrame"]:
         st.session_state["data_source"] = wanted
     elif st.session_state.get("data_source") not in options:
         st.session_state["data_source"] = LIVE_ONLY
-    c1, c2 = st.columns([3, 1.2], gap="medium")
-    with c1:
-        choice = st.selectbox("Data source", options, key="data_source",
-                              help="A fresh session starts on live only. Pick a dataset you uploaded, or everything.")
-    with c2:
-        with st.popover("Manage datasets", width="stretch"):
+    choice = st.selectbox("Data source", options, key="data_source",
+                          help="A fresh session starts on live only. Pick a dataset you uploaded, or everything.")
+    with st.expander(f"Manage datasets ({len(ds)})", expanded=False):
+        if True:
             if cached_available:
                 st.caption("The competition test data has a cached run that can be loaded as a dataset.")
                 if st.button("Load competition test run", key="ds_load_cache"):
@@ -372,11 +385,16 @@ def overview_page() -> None:
     hero_fragment()
 
     # ---- quick drop: any competition-format file, routed by its own layout
-    v1, v2 = st.columns([1, 3])
+    v1, v2, v3 = st.columns([1, 1, 2])
     with v1:
         view_toggle()
     with v2:
-        st.caption("Operator view shows actions and plain words. Engineer view adds every chart and model detail.")
+        st.segmented_control("Theme", ["Auto", "Day", "Night"], default=st.session_state.get("theme_pick", "Auto"),
+                             key="theme_pick", label_visibility="collapsed",
+                             help="Auto follows your system's day/night setting.")
+    with v3:
+        st.caption("Operator view: actions and plain words. Engineer view: every chart and model detail. "
+                   "Theme follows your system unless you pick one.")
     q1, q2 = st.columns([2.2, 1], gap="medium")
     with q1:
         drops = st.file_uploader("Drop any file here: the console works out which subsystem it is",
@@ -564,7 +582,7 @@ def overview_page() -> None:
                "the inspection is done. Every action is logged with a time and is visible to the next operator.")
 
     # ---- deeper tabs
-    tab_glance, tab_trends, tab_zones = st.tabs(["Subsystems", "Trends", "Zones"])
+    tab_glance, tab_trends, tab_zones = st.tabs(["Subsystems", "Trends", "Zones"] if engineer_view() else ["Subsystems", "Trends", "Zones (engineer view)"])
     with tab_glance:
         cols = st.columns(4, gap="small")
         for col, spec in zip(cols, SUBSYSTEMS.values()):
@@ -578,26 +596,7 @@ def overview_page() -> None:
                                     f"{mean:.3f} ± {std:.3f}" if card else "—",
                                     f"{METRIC_SHORT[spec.key]}, cross-validated" if card else "not validated", spec.method,
                                     quickdrop.SUBSYSTEM_EMOJI[spec.key]))
-        if any(results.values()):
-            g1, g2, g3, g4 = st.columns(4, gap="small")
-            with g1:
-                if results.get("door") is not None and not results["door"]["cycles"].empty:
-                    c = results["door"]["cycles"]
-                    plot(charts.door_timeline(c, float(c["end_s"].max())))
-            with g2:
-                if results.get("shm"):
-                    d = pd.DataFrame([{"file_id": f["file_id"], "damage": f["damage"]} for f in results["shm"]["files"]])
-                    plot(charts.shm_damage_compact(d))
-            with g3:
-                if results.get("rail"):
-                    plot(charts.rail_summary(results["rail"]["predictions"]))
-            with g4:
-                if results.get("acv"):
-                    f = results["acv"]["files"][0]
-                    v2 = f.get("rule") == "hot_fraction_then_peer_mean"
-                    src = f.get("hot_fraction") if v2 else f.get("peer_mean", f["scores"])
-                    html(ui.car_rank([(c, src.get(c)) for c in f["ranking"]],
-                                     fmt=(lambda s: f"{s:.1%}") if v2 else (lambda s: f"{s:+.2f} °C")))
+        st.caption("Each tile opens its page under Check a train; the charts live there, not here.")
     with tab_trends:
         if not tr:
             html(ui.empty("No trends yet", ["Trends need results. Run all, or one subsystem."]))
@@ -617,7 +616,9 @@ def overview_page() -> None:
             html(ui.section("Structural health · damage by measurement point"))
             plot(charts.shm_damage(tr["shm"]))
     with tab_zones:
-        if df.empty:
+        if not engineer_view():
+            st.caption("Zones are an engineer-view detail: switch the view above to see station counts by region.")
+        elif df.empty:
             st.caption("Station file missing.")
         else:
             zs = insight.zone_summary(df)
@@ -779,6 +780,13 @@ def shm_page() -> None:
         action, ev))
     st.caption(f"Watch ({SHM_WATCH}) and alert ({SHM_ALERT}) bands are illustrative planning "
                "thresholds for an operator to set. The model predicts D; it does not choose them.")
+    g1, g2 = st.columns([1, 2])
+    with g1:
+        html(schematics.shm_gauge(str(worst["file_id"]), float(worst["damage"]),
+                                  (1 - float(worst["damage"])) / max(float(worst["damage"]), 1e-9)))
+    with g2:
+        st.caption("The gauge is the worst measurement point in this run. There is no drawing of where the "
+                   "point sits on the vehicle because the files carry no position; nothing here is invented.")
 
     files["segments_to_failure"] = (1.0 - files["damage"]) / files["damage"]
     html(ui.section("Damage by file"))

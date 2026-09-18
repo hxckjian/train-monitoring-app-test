@@ -110,7 +110,7 @@ def deck(df: pd.DataFrame, line: str | None, state: str, train_label: str) -> pd
     tooltip = {"html": "<b>{name}</b><br/>{type} · {level}<br/>lines: {lines}",
                "style": {"backgroundColor": "#10151c", "color": "#f7f8fa", "fontSize": "12px"}}
     return pdk.Deck(layers=layers, initial_view_state=view, tooltip=tooltip,
-                    map_provider="carto", map_style="dark")
+                    map_provider="carto", map_style=__import__("theme").map_style())
 
 
 @st.cache_data(ttl=60, show_spinner=False)

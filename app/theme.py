@@ -13,18 +13,33 @@ from pathlib import Path
 
 TOKENS_PATH = (Path(__file__).resolve().parents[1]
                / "design-system" / "project" / "tokens.json")
-THEME = "dark"
+THEME = "dark"          # active theme; set_theme() switches it per run
 
 
-@lru_cache(maxsize=1)
+def set_theme(name: str) -> None:
+    """'light' or 'dark'. Called once per script run before anything draws."""
+    global THEME
+    THEME = "light" if name == "light" else "dark"
+
+
+def map_style() -> str:
+    return "light" if THEME == "light" else "dark"
+
+
 def tokens() -> dict[str, str]:
-    """Flat name -> CSS value map for the active theme, aliases resolved."""
+    return _tokens(THEME)
+
+
+@lru_cache(maxsize=2)
+def _tokens(theme: str) -> dict[str, str]:
+    """Flat name -> CSS value map for one theme, aliases resolved."""
+    THEME_ = theme
     data = json.loads(TOKENS_PATH.read_text(encoding="utf-8"))
     out: dict[str, str] = {}
     raw_colors = {}
     for t in data["color"]["tokens"]:
         v = t["value"]
-        raw_colors[t["name"]] = v.get(THEME, v.get("light")) if isinstance(v, dict) else v
+        raw_colors[t["name"]] = v.get(THEME_, v.get("light")) if isinstance(v, dict) else v
     alias = re.compile(r"^\{(.+)\}$")
 
     def resolve(name: str, depth: int = 0) -> str:
@@ -41,7 +56,7 @@ def tokens() -> dict[str, str]:
             out[t["name"]] = str(t["value"])
     for t in data.get("shadow", {}).get("tokens", []):
         v = t["value"]
-        out[t["name"]] = v.get(THEME, v.get("light")) if isinstance(v, dict) else v
+        out[t["name"]] = v.get(THEME_, v.get("light")) if isinstance(v, dict) else v
     for key, stack in data["type"]["families"].items():
         out[f"font-{key}"] = stack
     return out
@@ -208,7 +223,7 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 .nw-card, .nw-panel, .nw-kpi, .nw-sys, .nw-fleet, .nw-rank, .nw-empty, .nw-step {{ animation: nw-rise .45s cubic-bezier(.2,.7,.2,1) both; }}
 .nw-kpis .nw-kpi:nth-child(2) {{ animation-delay:.06s; }} .nw-kpis .nw-kpi:nth-child(3) {{ animation-delay:.12s; }} .nw-kpis .nw-kpi:nth-child(4) {{ animation-delay:.18s; }}
 .nw-kpi, .nw-sys, .nw-panel, .nw-fleet {{ transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }}
-.nw-kpi:hover, .nw-sys:hover, .nw-fleet:hover {{ transform: translateY(-2px); border-color: var(--line-control); box-shadow: 0 8px 24px rgba(0,0,0,.25); }}
+.nw-kpi:hover, .nw-sys:hover, .nw-fleet:hover {{ transform: translateY(-2px); border-color: var(--line-control); box-shadow: var(--shadow-card); }}
 .nw-rank-row .bar span, .nw-health span, .nw-stack span {{ transform-origin:left; animation: nw-grow .7s cubic-bezier(.2,.7,.2,1) both; }}
 .nw-chip.alert, .nw-pill.alert i, .nw-fleet.alert .nw-chip {{ animation: nw-blink 1.6s ease-out infinite; }}
 .nw-pill.alert {{ animation: nw-blink-text 1.6s ease-in-out infinite; }}
@@ -227,7 +242,7 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 /* ---- hero + glass ---- */
 @keyframes nw-float {{ 0%,100% {{ transform:translateY(0); }} 50% {{ transform:translateY(-4px); }} }}
 .nw-hero-card {{ position:relative; overflow:hidden; border-radius:22px; padding:22px 26px; margin:0 0 14px;
-  background: linear-gradient(135deg, rgba(46,143,212,.16), rgba(22,29,38,.7) 45%, rgba(224,67,79,.10));
+  background: linear-gradient(135deg, rgba(46,143,212,.16), color-mix(in srgb, var(--surface-card) 70%, transparent) 45%, rgba(224,67,79,.10));
   border:1px solid var(--line-hairline); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   animation: nw-rise .5s both; display:grid; grid-template-columns: 1fr auto; gap:18px; align-items:center; }}
 .nw-hero-card::before {{ content:""; position:absolute; inset:-40% -20% auto auto; width:420px; height:420px; border-radius:50%;

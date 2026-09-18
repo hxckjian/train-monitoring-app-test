@@ -122,7 +122,7 @@ def network_deck(df: pd.DataFrame, line: str | None, state: str, mode: str = "li
     tooltip = {"html": "<b>{name}{label}</b><br/>{zone} {type} {level}<br/>{lines}",
                "style": {"backgroundColor": "#10151c", "color": "#f7f8fa", "fontSize": "12px"}}
     return pdk.Deck(layers=layers, initial_view_state=view, tooltip=tooltip,
-                    map_provider="carto", map_style="dark")
+                    map_provider="carto", map_style=__import__("theme").map_style())
 
 
 # ------------------------------------------------------------------ events
@@ -305,7 +305,7 @@ def fleet_deck(df: pd.DataFrame, agg: pd.DataFrame, lines: list[str], weather: d
     tooltip = {"html": "<b>{name}{station}</b><br/>{label}{zone} {type}<br/>{lines}",
                "style": {"backgroundColor": "#10151c", "color": "#f7f8fa", "fontSize": "12px"}}
     return pdk.Deck(layers=layers, initial_view_state=view, tooltip=tooltip,
-                    map_provider="carto", map_style="dark")
+                    map_provider="carto", map_style=__import__("theme").map_style())
 
 
 def crowd_layer(crowd: dict | None, stations_df: pd.DataFrame) -> list:
