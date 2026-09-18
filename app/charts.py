@@ -415,3 +415,54 @@ def importances(imp: pd.Series, top: int = 12) -> go.Figure:
     fig.update_xaxes(title="importance")
     fig.update_yaxes(showgrid=False, tickfont=dict(size=10))
     return _base(fig, 26 * len(s) + 60, legend=False)
+
+
+# ----------------------------------------------------------- dashboard small multiples
+
+def shm_damage_compact(files: pd.DataFrame) -> go.Figure:
+    d = files.sort_values("damage", ascending=False)
+    fig = go.Figure(go.Bar(
+        x=d["file_id"], y=d["damage"],
+        marker=dict(color=[ramp_color(v) for v in d["damage"]], line=dict(width=0)),
+        hovertemplate="%{x}<br>D = %{y:.3f}<extra></extra>"))
+    fig.add_hline(y=1.0, line=dict(color=T("ink-primary"), width=1, dash="dot"))
+    fig.update_yaxes(title="damage D", range=[0, 1.05])
+    fig.update_xaxes(showticklabels=False, title=f"{len(d)} files, worst first")
+    return _base(fig, 220, legend=False)
+
+
+def class_bar(counts: dict, colors: dict | None) -> go.Figure:
+    keys = list(counts)
+    cols = [T(colors[k]) for k in keys] if colors else [T("series-1")] * len(keys)
+    fig = go.Figure(go.Bar(
+        x=keys, y=list(counts.values()), marker=dict(color=cols, line=dict(width=0)),
+        text=list(counts.values()), textposition="outside", cliponaxis=False,
+        textfont=dict(family="IBM Plex Mono, monospace", size=12, color=T("ink-secondary")),
+        hovertemplate="%{x}: %{y}<extra></extra>"))
+    fig.update_yaxes(rangemode="tozero", title="count")
+    return _base(fig, 220, legend=False)
+
+
+def damage_hist(d: pd.Series) -> go.Figure:
+    fig = go.Figure(go.Histogram(
+        x=d, nbinsx=20, marker=dict(color=T("series-1"), line=dict(color=T("surface-plot"), width=1)),
+        hovertemplate="D %{x}<br>%{y} files<extra></extra>"))
+    fig.update_xaxes(title="reference cumulative damage D", range=[0, 1])
+    fig.update_yaxes(title="files")
+    return _base(fig, 220, legend=False)
+
+
+def door_trend_compact(g: pd.DataFrame) -> go.Figure:
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=g["window_min"], y=g["mean_current"], mode="lines", name="current",
+                             line=dict(color=T("series-1"), width=2, shape="spline"),
+                             fill="tozeroy", fillcolor="rgba(46,143,212,0.15)",
+                             hovertemplate="min %{x}: %{y:.0f} mA<extra></extra>"))
+    ab = g[g["abnormal"] > 0]
+    if len(ab):
+        fig.add_trace(go.Scatter(x=ab["window_min"], y=ab["mean_current"], mode="markers", name="abnormal",
+                                 marker=dict(color=T("status-alert"), size=9, line=dict(color=T("surface-plot"), width=2)),
+                                 hovertemplate="min %{x}: %{text} abnormal<extra></extra>", text=ab["abnormal"]))
+    fig.update_xaxes(title="minutes")
+    fig.update_yaxes(title="mA", rangemode="tozero")
+    return _base(fig, 200, legend=False)

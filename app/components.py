@@ -103,3 +103,32 @@ def fleet_row(state: str, name: str, headline: str, detail: str) -> str:
     return (f'<div class="nw-fleet {state}"><div class="n">{escape(name)}</div>'
             f'<div class="h">{chip(state)}<span>{escape(headline)}</span></div>'
             f'<div class="d">{escape(detail)}</div></div>')
+
+
+def pill(state: str, text: str) -> str:
+    state = state if state in STATES else "unknown"
+    return f'<span class="nw-pill {state}"><i></i>{escape(text)}</span>'
+
+
+def status_bar(counts: dict[str, int], title: str = "Status overview") -> str:
+    """Stacked bar of alert / watch / ok, with a legend. Counts of assets in each state."""
+    total = sum(counts.values()) or 1
+    segs = "".join(f'<span class="{k}" style="width:{100 * v / total:.1f}%"></span>'
+                   for k, v in counts.items() if v)
+    words = {"alert": "Fault", "watch": "Watch", "ok": "Normal", "unknown": "Not assessed"}
+    legend = "".join(f'<span class="lg"><i class="{k}"></i>{words[k]} {v}</span>' for k, v in counts.items())
+    return (f'<div class="nw-panel"><div class="t">{escape(title)}</div>'
+            f'<div class="nw-stack">{segs}</div><div class="nw-legend">{legend}</div></div>')
+
+
+def event_table(rows: list[dict], empty: str = "No events yet") -> str:
+    if not rows:
+        return f'<div class="nw-panel"><div class="t">Events</div><p class="muted">{escape(empty)}</p></div>'
+    body = "".join(
+        f'<tr><td class="mono">#{i}</td><td>{escape(r["subsystem"])}</td><td>{escape(r["title"])}</td>'
+        f'<td class="muted">{escape(r["detail"])}</td><td class="mono">{r["severity"]:.2f}</td>'
+        f'<td>{pill(r["state"], STATES[r["state"]][1])}</td></tr>'
+        for i, r in enumerate(rows, 1))
+    return (f'<div class="nw-panel"><table class="nw-table"><thead><tr><th></th><th>Subsystem</th>'
+            f'<th>Event</th><th>Evidence</th><th>Severity</th><th>Status</th></tr></thead>'
+            f'<tbody>{body}</tbody></table></div>')

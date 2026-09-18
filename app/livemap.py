@@ -70,7 +70,17 @@ LINES: dict[str, tuple[str, list[str]]] = {
         "CALDECOTT", "STEVENS", "NAPIER", "ORCHARD", "GREAT WORLD", "HAVELOCK", "OUTRAM PARK",
         "SHENTON WAY", "MARINA BAY"]),
 }
+# Drawing order. A line with a branch is drawn as separate paths, otherwise the
+# path would jump from the end of the main line back to the branch and cut
+# straight across the island (the EWL Changi branch and the CCL Marina Bay spur).
+BRANCHES: dict[str, list[list[str]]] = {
+    "EWL": [[n for n in LINES["EWL"][1] if n not in ("EXPO", "CHANGI AIRPORT")],
+            ["TANAH MERAH", "EXPO", "CHANGI AIRPORT"]],
+    "CCL": [[n for n in LINES["CCL"][1] if n not in ("BAYFRONT", "MARINA BAY")],
+            ["PROMENADE", "BAYFRONT", "MARINA BAY"]],
+}
 TYPE_COLOR = {"MRT": [110, 120, 135], "LRT": [160, 168, 180], "CCL": [110, 120, 135]}
+WEATHER_API = "https://api-open.data.gov.sg/v2/real-time/api"
 STATE_RGB = {"ok": [31, 143, 92], "watch": [214, 138, 0], "alert": [214, 40, 40],
              "unknown": [110, 120, 135]}
 
@@ -140,7 +150,7 @@ def deck(df: pd.DataFrame, line: str | None, state: str, train_label: str) -> pd
     tooltip = {"html": "<b>{name}</b><br/>{type} · {level}<br/>lines: {lines}",
                "style": {"backgroundColor": "#10151c", "color": "#f7f8fa", "fontSize": "12px"}}
     return pdk.Deck(layers=layers, initial_view_state=view, tooltip=tooltip,
-                    map_provider="carto", map_style="light")
+                    map_provider="carto", map_style="dark")
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -190,6 +200,70 @@ def fetch_sgmrt(limit: int = 8) -> dict:
         return {"ok": True, "posts": posts}
     except Exception as exc:
         return {"ok": False, "reason": f"could not reach t.me ({type(exc).__name__})", "posts": []}
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_weather() -> dict:
+    """Live NEA readings from data.gov.sg (no key): air temperature, rainfall and
+    the 2-hour area forecast. Returns {'ok', 'stations': DataFrame, 'forecast': DataFrame}."""
+    try:
+        import requests
+        out = {"ok": True, "reason": ""}
+        rows = {}
+        for kind, key in (("air-temperature", "temp_c"), ("rainfall", "rain_mm")):
+            r = requests.get(f"{WEATHER_API}/{kind}", timeout=8)
+            if r.status_code != 200:
+                return {"ok": False, "reason": f"data.gov.sg answered HTTP {r.status_code}"}
+            d = r.json().get("data", {})
+            meta = {s["id"]: s for s in d.get("stations", [])}
+            readings = (d.get("readings") or [{}])[0]
+            out[f"{kind}_time"] = readings.get("timestamp")
+            for item in readings.get("data", []):
+                s = meta.get(item["stationId"])
+                if not s:
+                    continue
+                row = rows.setdefault(s["id"], {"station": s.get("name", s["id"]),
+                                                "lat": s["location"]["latitude"], "lon": s["location"]["longitude"]})
+                row[key] = float(item["value"])
+        stations = pd.DataFrame(list(rows.values()))
+        r = requests.get(f"{WEATHER_API}/two-hr-forecast", timeout=8)
+        fc = pd.DataFrame()
+        if r.status_code == 200:
+            d = r.json().get("data", {})
+            areas = {a["name"]: a["label_location"] for a in d.get("area_metadata", [])}
+            items = d.get("items") or [{}]
+            fc = pd.DataFrame([{"area": f["area"], "forecast": f["forecast"],
+                                "lat": areas.get(f["area"], {}).get("latitude"),
+                                "lon": areas.get(f["area"], {}).get("longitude")}
+                               for f in items[0].get("forecasts", [])])
+            out["forecast_valid"] = items[0].get("valid_period", {})
+        out["stations"], out["forecast"] = stations, fc
+        return out
+    except Exception as exc:
+        return {"ok": False, "reason": f"could not reach data.gov.sg ({type(exc).__name__})",
+                "stations": pd.DataFrame(), "forecast": pd.DataFrame()}
+
+
+def weather_near(weather: dict, lat: float, lon: float) -> dict:
+    """Nearest temperature / rain station and forecast area to a point."""
+    out = {}
+    st_ = weather.get("stations")
+    if st_ is not None and not st_.empty:
+        d2 = (st_["lat"] - lat) ** 2 + (st_["lon"] - lon) ** 2
+        near = st_.loc[d2.idxmin()]
+        out.update({"station": near["station"], "temp_c": near.get("temp_c"), "rain_mm": near.get("rain_mm")})
+        if "temp_c" in st_ and st_["temp_c"].notna().any():
+            t = st_.dropna(subset=["temp_c"])
+            out["temp_c"] = float(t.loc[((t["lat"] - lat) ** 2 + (t["lon"] - lon) ** 2).idxmin(), "temp_c"])
+        if "rain_mm" in st_ and st_["rain_mm"].notna().any():
+            rr = st_.dropna(subset=["rain_mm"])
+            out["rain_mm"] = float(rr.loc[((rr["lat"] - lat) ** 2 + (rr["lon"] - lon) ** 2).idxmin(), "rain_mm"])
+    fc = weather.get("forecast")
+    if fc is not None and not fc.empty and fc["lat"].notna().any():
+        f = fc.dropna(subset=["lat"])
+        near = f.loc[((f["lat"] - lat) ** 2 + (f["lon"] - lon) ** 2).idxmin()]
+        out.update({"area": near["area"], "forecast": near["forecast"]})
+    return out
 
 
 def line_mentioned(text: str, line: str | None) -> bool:

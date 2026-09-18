@@ -28,7 +28,8 @@ import components as ui  # noqa: E402
 import insight  # noqa: E402
 import livemap  # noqa: E402
 from subsystems.generic import monitor  # noqa: E402
-from core.registry import SUBSYSTEMS, SubsystemSpec  # noqa: E402
+from core import cache as result_cache  # noqa: E402
+from core.registry import DATA_ROOT, SUBSYSTEMS, SubsystemSpec  # noqa: E402
 from core.submission import SCHEMAS, build_predictions_zip, validate_submission  # noqa: E402
 from theme import T, css  # noqa: E402
 
@@ -131,6 +132,14 @@ def evidence_line(card: dict, metric_short: str) -> str:
 # =================================================================== pages
 
 def session_results() -> dict:
+    """Session results; on a fresh session, the cached run over the provided test data."""
+    if not any(st.session_state.get(f"{k}_result") for k in SUBSYSTEMS) \
+            and not st.session_state.get("_cache_tried"):
+        st.session_state["_cache_tried"] = True
+        cached = result_cache.load() or {}
+        for k, v in cached.items():
+            st.session_state[f"{k}_result"] = v
+        st.session_state["_from_cache"] = bool(cached)
     return {k: st.session_state.get(f"{k}_result") for k in SUBSYSTEMS}
 
 
@@ -154,91 +163,139 @@ def run_all(specs) -> None:
 def overview_page() -> None:
     results = session_results()
     states = insight.fleet_state(results)
-    html(ui.header("Train condition monitoring", "Fleet condition",
-                   "Four independent health checks on a rail vehicle, each with its own validated "
-                   "model, summarised on one screen with the network they run on."))
-
-    # ---- status strip
-    cols = st.columns(4, gap="small")
-    for col, spec in zip(cols, SUBSYSTEMS.values()):
-        card, state = spec.model_card(), states[spec.key]
-        v = card["validation"] if card else {}
-        mean = v.get("mean_iou_weighted_f1", v.get("mean_score"))
-        std = v.get("std_iou_weighted_f1", v.get("std_score"))
-        word = {"ok": "Normal", "watch": "Watch", "alert": "Fault found", "unknown": "Not assessed"}[state]
-        with col:
-            html(ui.system_tile(T(IDENTITY[spec.key]), state, word, spec.name, spec.question,
-                                f"{mean:.3f} ± {std:.3f}" if card else "—",
-                                f"{METRIC_SHORT[spec.key]}, cross-validated" if card else "not validated",
-                                spec.method))
-    live = [sp for sp in SUBSYSTEMS.values() if sp.available and sp.test_inputs()]
-    not_run = [sp for sp in live if results.get(sp.key) is None]
-    c1, c2 = st.columns([1, 3])
-    with c1:
-        if live and st.button(f"Run all {len(live)} on the provided test data", type="primary",
-                              ):
-            run_all(live)
-            st.rerun()
-    with c2:
-        st.caption("Runs every model on the competition test inputs (about 1 minute; Rail is the slow one) "
-                   "so this dashboard, the Fleet view and the Submission page all fill in. "
-                   "Each subsystem page can also be run on its own or on an upload.")
-
     ev = insight.events(results)
     tr = insight.trends(results)
-    tab_map, tab_events, tab_trends, tab_zones = st.tabs(
-        ["Network map", f"Top events ({len(ev)})", "Trends", "Zones"])
+    rank = {"alert": 3, "watch": 2, "ok": 1, "unknown": 0}
+    worst = max(states.values(), key=lambda x: rank[x])
+    live = [sp for sp in SUBSYSTEMS.values() if sp.available and sp.test_inputs()]
 
-    with tab_map:
+    h1, h2 = st.columns([3, 1.2])
+    with h1:
+        html(ui.header("Train condition monitoring", "Fleet condition",
+                       "Door, structural health, rail corrugation and air conditioning on one screen, "
+                       "with the network they run on and the live conditions around it."))
+    with h2:
+        st.write("")
+        if live and st.button(f"Run all {len(live)} on the provided test data", type="primary", width="stretch"):
+            run_all(live)
+            st.rerun()
+        if st.session_state.get("_from_cache"):
+            st.caption("Showing the cached run over the competition test data. Each subsystem page also accepts uploads.")
+
+    # ---- counts for the KPI cards and the status bar
+    n_assets = sum(len(r["files"]) if r and "files" in r else (len(r["cycles"]) if r else 0) for r in results.values())
+    n_alert = sum(1 for e in ev if e["state"] == "alert")
+    n_watch = sum(1 for e in ev if e["state"] == "watch")
+    shm_w = max((f["damage"] for f in results["shm"]["files"]), default=None) if results.get("shm") else None
+    acv_top = results["acv"]["files"][0]["ranking"][0] if results.get("acv") else None
+    n_unassessed = sum(1 for v in states.values() if v == "unknown")
+
+    left, right = st.columns([1, 2.15], gap="medium")
+    with left:
+        html(ui.kpis([
+            ("Assets assessed", f"{n_assets}", "cycles, files, recordings, cases"),
+            ("Faults flagged", f"{n_alert}", f"{n_watch} on watch" if ev else "nothing run yet"),
+            ("Worst fatigue", f"{shm_w:.2f}" if shm_w is not None else "—", "of fatigue life used"),
+            ("Leak suspect", f"Car {acv_top}" if acv_top else "—", "most likely faulty car"),
+        ]).replace('class="nw-kpis"', 'class="nw-kpis two"'))
+        html(ui.status_bar({"alert": n_alert, "watch": n_watch,
+                            "ok": max(0, n_assets - n_alert - n_watch), "unknown": n_unassessed},
+                           "Status overview · assets"))
+        html('<div class="nw-panel"><div class="t">Trend</div>')
+        if "door" in tr:
+            st.caption("Door · sustained motor current per 5-minute window, abnormal cycles in red")
+            plot(charts.door_trend_compact(tr["door"]))
+        elif "rail" in tr:
+            st.caption("Rail · P(corrugated) across recordings")
+            plot(charts.rail_trend(tr["rail"]))
+        else:
+            st.caption("Run a subsystem to see a trend.")
+        html('</div>')
+
+    with right:
         df = insight.with_zones(livemap.stations())
-        a, b, c = st.columns([1, 1, 2])
-        with a:
+        c1, c2, c3 = st.columns([1.1, 0.9, 1.6])
+        with c1:
             line = st.selectbox("Line of the assessed train", list(livemap.LINES), key="fleet_line",
-                                format_func=lambda k: LINE_NAMES[k])
-        with b:
-            mode = st.segmented_control("Colour stations by", ["Line", "Zone"], default="Line",
-                                        key="dash_map_mode") or "Line"
-        with c:
-            worst = max(states.values(), key=lambda x: {"alert": 3, "watch": 2, "ok": 1, "unknown": 0}[x])
+                                format_func=lambda k: LINE_NAMES[k], label_visibility="collapsed")
+        with c2:
+            mode = st.segmented_control("Colour", ["Line", "Zone"], default="Line", key="dash_map_mode",
+                                        label_visibility="collapsed") or "Line"
+        with c3:
             zones = insight.zones_for_line(df, line)
             html(ui.chip(worst, {"ok": "All assessed systems normal", "watch": "Watch",
-                                 "alert": "Fault found on this train", "unknown": "Nothing assessed yet"}[worst],
-                         f"{LINE_NAMES[line]} · runs through {', '.join(zones) if zones else '—'}"))
+                                 "alert": f"{n_alert} fault(s) on this train", "unknown": "Nothing assessed yet"}[worst],
+                         f"{line} · {', '.join(zones) if zones else '—'}"))
         if df.empty:
             html(ui.empty("Station map unavailable", ["data/stations/AmendmenttoMP2014RailStation.geojson is missing."]))
         else:
-            st.pydeck_chart(insight.network_deck(df, line, worst, "zones" if mode == "Zone" else "lines"), height=540)
+            weather = livemap.fetch_weather()
+            st.pydeck_chart(insight.network_deck(df, line, worst, "zones" if mode == "Zone" else "lines", weather), height=520)
             legend = " &nbsp; ".join(
                 f'<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:{c};margin-right:4px"></span>{k}'
                 for k, (c, _) in livemap.LINES.items()) if mode == "Line" else " &nbsp; ".join(
                 f'<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgb({",".join(map(str, z["rgb"]))});margin-right:4px"></span>{k}'
                 for k, z in insight.ZONES.items())
-            html(f'<div style="font-size:12px;color:var(--ink-secondary);margin-top:6px">{legend}</div>')
-            st.caption("Lines are drawn through the station centroids the 2014 Master Plan amendment file "
-                       "carries; a few newer stations are absent, so some paths cut corners. The halo "
-                       "on the chosen line is the worst verdict in this session. Zones are approximate "
-                       "planning regions from coordinates.")
+            wl = ""
+            if weather.get("ok"):
+                sel = df[df["key"].isin(livemap.LINES[line][1])]
+                w = livemap.weather_near(weather, float(sel["lat"].mean()), float(sel["lon"].mean())) if not sel.empty else {}
+                wl = (f' &nbsp;·&nbsp; live NEA: {w.get("temp_c", float("nan")):.1f} °C at {w.get("station", "?")}, '
+                      f'rain {w.get("rain_mm", 0):.1f} mm, {w.get("area", "")} {w.get("forecast", "")}'
+                      f' &nbsp;·&nbsp; blue discs = rain gauges')
+            html(f'<div style="font-size:12px;color:var(--ink-secondary);margin-top:6px">{legend}{wl}</div>')
 
-    with tab_events:
-        if not ev:
-            html(ui.empty("No events yet", ["Run a subsystem, or press Run all above. Every flagged cycle, "
-                                            "file, recording and car appears here ranked by severity."]))
-        else:
-            html(ui.section("Top 3"))
-            for i, e in enumerate(insight.top_events(ev, 3), 1):
-                html(ui.fleet_row(e["state"], f"#{i} · {e['subsystem']} · severity {e['severity']:.2f}",
-                                  e["title"], e["detail"]))
-            if len(ev) > 3:
-                with st.expander(f"All {len(ev)} events"):
-                    st.dataframe(pd.DataFrame(ev)[["severity", "state", "subsystem", "title", "detail"]],
-                                 hide_index=True, width="stretch",
-                                 column_config={"severity": st.column_config.ProgressColumn(
-                                     "Severity", min_value=0.0, max_value=1.0, format="%.2f")})
-            st.caption("Top 3 shows the worst event of each subsystem first. Severity is a display ordering, "
-                       "not a probability: it combines the model's own "
-                       "confidence with how far a value sits past its watch band, so different "
-                       "subsystems can share one list.")
+    # ---- events table with filter pills
+    html(ui.section("Events"))
+    f1, f2 = st.columns([2, 3])
+    with f1:
+        flt = st.segmented_control("Show", ["All", "Fault", "Watch"], default="All", key="ev_filter",
+                                   label_visibility="collapsed") or "All"
+    rows = [e for e in ev if flt == "All" or e["state"] == {"Fault": "alert", "Watch": "watch"}[flt]]
+    html(ui.event_table(insight.top_events(rows, 3) + [e for e in rows if e not in insight.top_events(rows, 3)][:9],
+                        "Run a subsystem, or press Run all. Every flagged cycle, file, recording and car lands here."))
+    if len(rows) > 12:
+        with st.expander(f"All {len(rows)} events"):
+            st.dataframe(pd.DataFrame(rows)[["severity", "state", "subsystem", "title", "detail"]],
+                         hide_index=True, width="stretch",
+                         column_config={"severity": st.column_config.ProgressColumn("Severity", min_value=0.0, max_value=1.0, format="%.2f")})
+    st.caption("The first three are the worst event of each subsystem; severity combines the model's confidence "
+               "with how far a value sits past its watch band, so subsystems can share one list.")
 
+    # ---- deeper tabs
+    tab_glance, tab_trends, tab_zones, tab_data = st.tabs(["Subsystems", "Trends", "Zones", "Training data"])
+    with tab_glance:
+        cols = st.columns(4, gap="small")
+        for col, spec in zip(cols, SUBSYSTEMS.values()):
+            card, state = spec.model_card(), states[spec.key]
+            v = card["validation"] if card else {}
+            mean = v.get("mean_iou_weighted_f1", v.get("mean_score"))
+            std = v.get("std_iou_weighted_f1", v.get("std_score"))
+            word = {"ok": "Normal", "watch": "Watch", "alert": "Fault found", "unknown": "Not assessed"}[state]
+            with col:
+                html(ui.system_tile(T(IDENTITY[spec.key]), state, word, spec.name, spec.question,
+                                    f"{mean:.3f} ± {std:.3f}" if card else "—",
+                                    f"{METRIC_SHORT[spec.key]}, cross-validated" if card else "not validated", spec.method))
+        if any(results.values()):
+            g1, g2, g3, g4 = st.columns(4, gap="small")
+            with g1:
+                if results.get("door") is not None and not results["door"]["cycles"].empty:
+                    c = results["door"]["cycles"]
+                    plot(charts.door_timeline(c, float(c["end_s"].max())))
+            with g2:
+                if results.get("shm"):
+                    d = pd.DataFrame([{"file_id": f["file_id"], "damage": f["damage"]} for f in results["shm"]["files"]])
+                    plot(charts.shm_damage_compact(d))
+            with g3:
+                if results.get("rail"):
+                    plot(charts.rail_summary(results["rail"]["predictions"]))
+            with g4:
+                if results.get("acv"):
+                    f = results["acv"]["files"][0]
+                    v2 = f.get("rule") == "hot_fraction_then_peer_mean"
+                    src = f.get("hot_fraction") if v2 else f.get("peer_mean", f["scores"])
+                    html(ui.car_rank([(c, src.get(c)) for c in f["ranking"]],
+                                     fmt=(lambda s: f"{s:.1%}") if v2 else (lambda s: f"{s:+.2f} °C")))
     with tab_trends:
         if not tr:
             html(ui.empty("No trends yet", ["Trends need results. Run all, or one subsystem."]))
@@ -256,30 +313,39 @@ def overview_page() -> None:
             plot(charts.rail_trend(tr["rail"]))
         if "shm" in tr:
             html(ui.section("Structural health · damage by measurement point"))
-            plot(charts.shm_damage(tr["shm"].rename(columns={"damage": "damage"})))
-        if tr:
-            st.caption("The competition data are single recordings, so trends run over the time "
-                       "inside each recording or across its files. With a live feed the same "
-                       "charts run over days.")
-
+            plot(charts.shm_damage(tr["shm"]))
     with tab_zones:
-        df = insight.with_zones(livemap.stations())
         if df.empty:
             st.caption("Station file missing.")
         else:
             zs = insight.zone_summary(df)
-            line = st.session_state.get("fleet_line", "NSL")
             mine = set(insight.zones_for_line(df, line))
             cols = st.columns(5, gap="small")
             for col, r in zip(cols, zs.itertuples()):
                 with col:
                     rgb = insight.ZONES[r.zone]["rgb"]
-                    html(ui.system_tile(f"rgb({rgb[0]},{rgb[1]},{rgb[2]})",
-                                        worst if r.zone in mine else "unknown",
+                    html(ui.system_tile(f"rgb({rgb[0]},{rgb[1]},{rgb[2]})", worst if r.zone in mine else "unknown",
                                         "On this train's line" if r.zone in mine else "No assessed train",
                                         r.zone, r.hint, f"{r.stations}", "stations", f"lines: {r.lines}"))
-            st.caption("A subsystem verdict belongs to a train, not a place. Zones light up through "
-                       "the line you selected on the map; a position log would pin it to a section.")
+            st.caption("A verdict belongs to a train, not a place. Zones light up through the selected line.")
+    with tab_data:
+        d1, d2 = st.columns(2, gap="medium")
+        with d1:
+            st.caption("Door · 110 labelled cycles in one 24-minute stream")
+            plot(charts.class_bar({"Normal": 80, "Abnormal resistance": 30}, {"Normal": "status-ok", "Abnormal resistance": "status-alert"}))
+            st.caption("Rail · 272 one-second recordings")
+            plot(charts.class_bar({"Normal": 234, "Side I": 14, "Side II": 24}, charts.RAIL_COLOR))
+        with d2:
+            lab = DATA_ROOT / "SHM" / "Train_Labels.csv"
+            st.caption("Structural health · reference damage of the 64 training files")
+            if lab.exists():
+                plot(charts.damage_hist(pd.read_csv(lab)["damage"]))
+            else:
+                st.caption("dataset not present on this machine")
+            st.caption("Air conditioning · faulty car in the 6 training cases")
+            plot(charts.class_bar({"01": 2, "02": 1, "03": 1, "04": 1, "06": 1}, None))
+        st.caption("Class balance drives the metric: macro F1 for Rail, IoU-weighted F1 for Door, relative error "
+                   "for SHM, rank decay for ACV. The Validation page shows how each was scored.")
 
 
 def door_page() -> None:
@@ -724,6 +790,15 @@ def fleet_page() -> None:
             html(ui.fleet_row(state, name, headline, detail))
 
     html(ui.section("Live service status"))
+    weather = livemap.fetch_weather()
+    if weather.get("ok") and not df.empty:
+        sel = df[df["key"].isin(livemap.LINES[line][1])]
+        w = livemap.weather_near(weather, float(sel["lat"].mean()), float(sel["lon"].mean())) if not sel.empty else {}
+        html(ui.kpis([("Air temperature", f"{w.get('temp_c', float('nan')):.1f} °C", f"nearest NEA station: {w.get('station', '?')}"),
+                      ("Rainfall, last 5 min", f"{w.get('rain_mm', 0):.1f} mm", "heavy rain slows the network and loads the doors"),
+                      ("2-hour forecast", f"{w.get('forecast', '—')}", f"{w.get('area', '')} · data.gov.sg, no key needed"),
+                      ("Heat load on air-con", "high" if (w.get('temp_c') or 0) >= 31 else "normal",
+                       "refrigerant leaks show first on hot afternoons")]))
     a, b = st.columns(2, gap="medium")
     with a:
         st.markdown("**LTA DataMall · TrainServiceAlerts**")
@@ -1030,28 +1105,28 @@ def method_page() -> None:
                    "Deterministic, physically grounded models; validation designed to "
                    "prevent leakage; one interface for every subsystem."))
     html(ui.section("Architecture"))
-    st.graphviz_chart("""
-digraph G {
+    st.graphviz_chart(f"""
+digraph G {{
   rankdir=LR; bgcolor="transparent";
   node [shape=box, style="rounded,filled", fontname="IBM Plex Sans", fontsize=11,
-        color="#e2e7ee", fillcolor="#ffffff", fontcolor="#10151c", margin="0.18,0.1"];
-  edge [color="#848f9e", arrowsize=0.6];
-  ui [label="Streamlit console\\napp/", fillcolor="#eef1f5"];
+        color="{T('line-hairline')}", fillcolor="{T('surface-card')}", fontcolor="{T('ink-primary')}", margin="0.18,0.1"];
+  edge [color="{T('ink-muted')}", arrowsize=0.6];
+  ui [label="Streamlit console\\napp/", fillcolor="{T('surface-sunken')}"];
   reg [label="Subsystem registry\\ncore/registry.py"];
   sub [label="Submission validator\\n+ zip builder\\ncore/submission.py"];
   door [label="subsystems/door\\npredict() · analyze()"];
   shm [label="subsystems/shm\\npredict() · analyze()"];
   rail [label="subsystems/rail\\npredict() · analyze()"];
   acv [label="subsystems/acv\\npredict() · analyze()"];
-  live [label="app/livemap.py\\nPS2 stations + LTA/SGMRT feeds", fillcolor="#eef1f5"];
-  art [label="artifacts/\\nmodel + config.json", fillcolor="#eef1f5"];
-  tok [label="design-system/\\ntokens.json", fillcolor="#eef1f5"];
-  score [label="scoring/metrics.py\\nofficial formulas, 28 tests", fillcolor="#eef1f5"];
+  live [label="app/livemap.py\\nPS2 stations + LTA/SGMRT feeds", fillcolor="{T('surface-sunken')}"];
+  art [label="artifacts/\\nmodel + config.json", fillcolor="{T('surface-sunken')}"];
+  tok [label="design-system/\\ntokens.json", fillcolor="{T('surface-sunken')}"];
+  score [label="scoring/metrics.py\\nofficial formulas, 28 tests", fillcolor="{T('surface-sunken')}"];
   zip [label="predictions.zip", shape=note];
   tok -> ui; ui -> reg; reg -> door; reg -> shm; reg -> rail; reg -> acv;
-  door -> art; shm -> art; rail -> art; acv -> art; live -> ui; ui -> sub; sub -> zip; score -> door [style=dashed, label=" validates", fontsize=9, fontcolor="#626c7a"];
+  door -> art; shm -> art; rail -> art; acv -> art; live -> ui; ui -> sub; sub -> zip; score -> door [style=dashed, label=" validates", fontsize=9, fontcolor="{T('ink-muted')}"];
   score -> shm [style=dashed];
-}""", width="stretch")
+}}""", width="stretch")
 
     html(ui.section("Validation"))
     rows = []
@@ -1128,4 +1203,5 @@ pages = {
         st.Page(method_page, title="Method", icon=":material/schema:", url_path="method"),
     ],
 }
+session_results()  # a fresh session starts from the cached run, on every page
 st.navigation(pages, position="top").run()

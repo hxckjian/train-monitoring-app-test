@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pydeck as pdk
 
-from livemap import LINES, STATE_RGB, TYPE_COLOR
+from livemap import BRANCHES, LINES, STATE_RGB, TYPE_COLOR
 
 # Singapore planning regions, approximated from station centroids. Good enough to
 # say "north" or "east"; not a URA boundary file.
@@ -63,14 +63,38 @@ def line_paths(df: pd.DataFrame) -> list[dict]:
     lookup = df.drop_duplicates("key").set_index("key")
     paths = []
     for code, (hexcol, names) in LINES.items():
-        pts = [[float(lookup.loc[n, "lon"]), float(lookup.loc[n, "lat"])] for n in names if n in lookup.index]
-        if len(pts) >= 2:
-            rgb = [int(hexcol[i:i + 2], 16) for i in (1, 3, 5)]
-            paths.append({"line": code, "color": rgb, "path": pts, "n": len(pts)})
+        rgb = [int(hexcol[i:i + 2], 16) for i in (1, 3, 5)]
+        for seq in BRANCHES.get(code, [names]):
+            pts = [[float(lookup.loc[n, "lon"]), float(lookup.loc[n, "lat"])] for n in seq if n in lookup.index]
+            if len(pts) >= 2:
+                paths.append({"line": code, "color": rgb, "path": pts, "n": len(pts)})
     return paths
 
 
-def network_deck(df: pd.DataFrame, line: str | None, state: str, mode: str = "lines") -> pdk.Deck:
+def weather_layers(weather: dict | None) -> list:
+    """Rain gauges as blue discs sized by the last 5-minute rainfall, temperature as text."""
+    if not weather or not weather.get("ok") or weather.get("stations") is None or weather["stations"].empty:
+        return []
+    w = weather["stations"].copy()
+    layers = []
+    if "rain_mm" in w:
+        r = w.dropna(subset=["rain_mm"]).copy()
+        r["radius"] = 250 + 400 * r["rain_mm"].clip(0, 10)
+        r["color"] = [[0, 120, 220, 140] if v > 0 else [0, 120, 220, 40] for v in r["rain_mm"]]
+        r["label"] = [f"{s} · rain {v:.1f} mm" for s, v in zip(r["station"], r["rain_mm"])]
+        layers.append(pdk.Layer("ScatterplotLayer", data=r, get_position="[lon, lat]", get_fill_color="color",
+                                get_radius="radius", pickable=True, stroked=False))
+    if "temp_c" in w:
+        t = w.dropna(subset=["temp_c"]).copy()
+        t["text"] = [f"{v:.1f}°" for v in t["temp_c"]]
+        layers.append(pdk.Layer("TextLayer", data=t, get_position="[lon, lat]", get_text="text",
+                                get_size=13, get_color=[40, 60, 90], get_text_anchor='"start"',
+                                get_alignment_baseline='"bottom"', get_pixel_offset=[6, -6]))
+    return layers
+
+
+def network_deck(df: pd.DataFrame, line: str | None, state: str, mode: str = "lines",
+                 weather: dict | None = None) -> pdk.Deck:
     """Detailed map: line paths in official colours, stations coloured by zone or type,
     the chosen line lifted with a halo in the verdict colour."""
     d = df.copy()
@@ -94,10 +118,11 @@ def network_deck(df: pd.DataFrame, line: str | None, state: str, mode: str = "li
             sel["halo"] = [STATE_RGB.get(state, STATE_RGB["unknown"])] * len(sel)
             layers.insert(0, pdk.Layer("ScatterplotLayer", data=sel, get_position="[lon, lat]",
                                        get_fill_color="halo", get_radius=520, opacity=0.3, stroked=False))
-    tooltip = {"html": "<b>{name}</b><br/>{zone} · {type} · {level}<br/>lines: {lines}",
+    layers = weather_layers(weather) + layers
+    tooltip = {"html": "<b>{name}{label}</b><br/>{zone} {type} {level}<br/>{lines}",
                "style": {"backgroundColor": "#10151c", "color": "#f7f8fa", "fontSize": "12px"}}
     return pdk.Deck(layers=layers, initial_view_state=view, tooltip=tooltip,
-                    map_provider="carto", map_style="light")
+                    map_provider="carto", map_style="dark")
 
 
 # ------------------------------------------------------------------ events

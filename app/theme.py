@@ -13,7 +13,7 @@ from pathlib import Path
 
 TOKENS_PATH = (Path(__file__).resolve().parents[1]
                / "design-system" / "project" / "tokens.json")
-THEME = "light"
+THEME = "dark"
 
 
 @lru_cache(maxsize=1)
@@ -163,12 +163,42 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 .nw-fleet .h {{ display:flex; align-items:center; gap:10px; font-size:15px; font-weight:600; }}
 .nw-fleet .d {{ font-size:13px; color:var(--ink-secondary); margin-top:4px; }}
 
+/* ---- dashboard panels ---- */
+.nw-panel {{ background:var(--surface-card); border:1px solid var(--line-hairline); border-radius:var(--radius-lg); padding:18px 20px; margin-bottom:12px; }}
+.nw-panel .t {{ font-size:15px; font-weight:600; margin-bottom:12px; }}
+.nw-panel .muted {{ color:var(--ink-muted); font-size:13px; margin:0; }}
+.nw-stack {{ display:flex; height:14px; border-radius:999px; overflow:hidden; background:var(--surface-sunken); gap:2px; }}
+.nw-stack span {{ display:block; height:100%; }}
+.nw-stack .alert, .nw-legend i.alert {{ background:var(--status-alert); }}
+.nw-stack .watch, .nw-legend i.watch {{ background:var(--status-watch); }}
+.nw-stack .ok, .nw-legend i.ok {{ background:var(--status-ok); }}
+.nw-stack .unknown, .nw-legend i.unknown {{ background:var(--line-control); }}
+.nw-legend {{ display:flex; flex-wrap:wrap; gap:14px; margin-top:10px; font-size:12px; color:var(--ink-secondary); }}
+.nw-legend i {{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }}
+.nw-pill {{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; white-space:nowrap; }}
+.nw-pill i {{ width:8px; height:8px; border-radius:50%; display:inline-block; }}
+.nw-pill.alert {{ color:var(--status-alert); }} .nw-pill.alert i {{ background:var(--status-alert); }}
+.nw-pill.watch {{ color:var(--status-watch); }} .nw-pill.watch i {{ background:var(--status-watch); }}
+.nw-pill.ok {{ color:var(--status-ok); }} .nw-pill.ok i {{ background:var(--status-ok); }}
+.nw-pill.unknown {{ color:var(--ink-muted); }} .nw-pill.unknown i {{ background:var(--line-control); }}
+.nw-table {{ width:100%; border-collapse:collapse; font-size:13px; }}
+.nw-table th {{ text-align:left; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--line-hairline); }}
+.nw-table td {{ padding:10px 8px; border-bottom:1px solid var(--line-hairline); vertical-align:top; }}
+.nw-table tr:last-child td {{ border-bottom:0; }}
+.nw-table .mono {{ font-family:var(--font-mono); color:var(--ink-muted); font-size:12px; }}
+.nw-table .muted {{ color:var(--ink-secondary); font-size:12px; }}
+.nw-kpis.two {{ grid-template-columns:repeat(2, 1fr); }}
+.nw-kpi .v.sm {{ font-size:24px; line-height:28px; }}
+.nw-hero {{ display:flex; align-items:center; gap:10px; margin:0 0 10px; }}
+.nw-hero .n {{ font-family:var(--font-mono); font-size:22px; font-weight:500; background:var(--surface-card); border:1px solid var(--line-hairline); border-radius:999px; padding:6px 16px; }}
+
 /* ---- streamlit widget polish ---- */
 .stButton > button, .stDownloadButton > button {{ border-radius: var(--radius-md); font-weight: 600;
   border: 1px solid var(--line-control); }}
 .stButton > button[kind="primary"], .stDownloadButton > button[kind="primary"] {{
   background: var(--ink-primary); border-color: var(--ink-primary); color: var(--ink-inverse); }}
-.stButton > button[kind="primary"]:hover {{ background: #2a323d; border-color: #2a323d; color: var(--ink-inverse); }}
+.stButton > button[kind="primary"]:hover {{ filter: brightness(1.15); color: var(--ink-inverse); }}
+[data-testid="stTabs"] button {{ font-weight:600; }}
 [data-testid="stFileUploaderDropzone"] {{ background: var(--surface-card); border: 1px dashed var(--line-control);
   border-radius: var(--radius-lg); }}
 [data-testid="stExpander"] {{ border-radius: var(--radius-lg); border-color: var(--line-hairline); background: var(--surface-card); }}

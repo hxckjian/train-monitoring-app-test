@@ -27,3 +27,6 @@ scratch/
 # contract says a teammate must be able to run the smoke test without
 # retraining. If an artifact ever exceeds ~50 MB, revisit this.
 artifacts_cache/
+
+# derived dashboard cache, rebuilt by scripts/build_predictions.py
+predictions/analysis_cache.pkl
