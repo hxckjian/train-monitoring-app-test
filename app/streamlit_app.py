@@ -29,14 +29,16 @@ import streamlit as st  # noqa: E402
 
 
 def _reload_project_modules(modules) -> bool:
-    """Reload every project module once per script version.
+    """Reload every project module once per code version.
 
     Hosted Streamlit re-runs this script when a deploy lands but keeps the modules
-    it imported earlier, so a new script can meet an old module. The script's own
-    mtime is the version stamp: when it changes, reload the modules in dependency
-    order. Costs a few milliseconds, once per deploy per process."""
+    it imported earlier, so a new script can meet an old module. The newest mtime
+    across the script and the modules is the version stamp: when any of them
+    changes, reload them all in dependency order. A few milliseconds, once per
+    change per process."""
     import core as _core_pkg
-    stamp = os.path.getmtime(__file__)
+    files = [__file__] + [getattr(m, "__file__", None) for m in modules]
+    stamp = max(os.path.getmtime(f) for f in files if f and os.path.exists(f))
     if getattr(_core_pkg, "__script_stamp__", None) == stamp:
         return False
     for m in modules:
