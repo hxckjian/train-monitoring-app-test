@@ -324,7 +324,16 @@ html {{ scroll-behavior: smooth; }}
 .stApp .stAlert, .stApp [data-testid="stAlert"] {{ color: var(--ink-primary); }}
 .stApp [data-testid="stToolbar"], .stApp [data-testid="stStatusWidget"] {{ color: var(--ink-secondary); }}
 [data-testid="stHeader"] a, [data-testid="stHeader"] button, [data-testid="stHeader"] span {{ color: var(--ink-primary) !important; }}
-[data-testid="stHeader"] [role="menu"], [data-testid="stHeader"] ul {{ background: var(--surface-card) !important; }}
+/* menus drawn in portals (navigation dropdowns, select lists, popovers) sit outside .stApp */
+[data-baseweb="popover"], [data-baseweb="popover"] > div, [data-baseweb="popover"] > div > div, [data-baseweb="menu"],
+[role="menu"], ul[role="listbox"], [data-testid="stHeader"] ul, [data-testid="stHeader"] [role="menu"],
+[data-testid^="stTopNav"] ul, [data-testid^="stTopNav"] [role="menu"], [data-testid*="Menu"], [data-testid*="SectionMenu"] {{
+  background-color: var(--surface-card) !important; color: var(--ink-primary) !important; border-color: var(--line-hairline) !important; }}
+[data-baseweb="popover"] a, [data-baseweb="popover"] li, [data-baseweb="popover"] span, [data-baseweb="popover"] p, [data-baseweb="popover"] label,
+[role="menuitem"], [role="menuitem"] *, [data-testid^="stTopNav"] a, [data-testid^="stTopNav"] a *, [data-testid="stHeader"] a, [data-testid="stHeader"] a * {{
+  color: var(--ink-primary) !important; }}
+[data-baseweb="popover"] li:hover, [role="menuitem"]:hover, [data-testid^="stTopNav"] a:hover {{ background-color: var(--surface-sunken) !important; }}
+[data-baseweb="popover"] [data-testid="stIconMaterial"], [data-testid="stHeader"] [data-testid="stIconMaterial"] {{ color: var(--ink-secondary) !important; }}
 .stApp hr {{ border-color: var(--line-hairline); }}
 
 /* ---- streamlit widget polish ---- */
