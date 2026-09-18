@@ -659,7 +659,8 @@ def acv_page() -> None:
 
     html(ui.kpis([
         ("Cases ranked", f"{len(ids)}", None),
-        ("Most likely faulty", f"Car {top}", (f"hot {h_top:.1%} of cooling time · {s_top:+.2f} °C mean" if v2
+        ("Most likely faulty", f"Car {top}", ((f"hot {h_top:.1%} of cooling time · {s_top:+.2f} °C mean" if h_top > 0
+                                              else f"no hot episodes; {s_top:+.2f} °C mean excess decides") if v2
                                               else f"{s_top:+.2f} °C above the other cars") if s_top is not None else None),
         ("Margin to runner-up", (f"{(h_top - h_2):.1%} of time" if v2 else f"{gap:.2f} °C") if gap is not None else "—",
          f"runner-up Car {second}" + (f" · {gap:+.2f} °C mean gap" if v2 and gap is not None else "")),
@@ -670,8 +671,13 @@ def acv_page() -> None:
     html(ui.verdict(
         state, "Air conditioning",
         f"Car {top} is the most likely refrigerant leak in {pick}",
-        (f"During cooling, Car {top} ran more than 2 °C hotter than the median of the other seven cars "
-         f"for {h_top:.1%} of the time (runner-up {h_2:.1%}), and {s_top:+.2f} °C hotter on average. "
+        ((f"During cooling, Car {top} ran more than 2 °C hotter than the median of the other seven cars "
+          f"for {h_top:.1%} of the time (runner-up {h_2:.1%}), and {s_top:+.2f} °C hotter on average. ")
+         if h_top > 0 else
+         (f"No car in this file ran more than 2 °C above the others during cooling, so the ranking falls "
+          f"back to the mean excess: Car {top} ran {s_top:+.2f} °C hotter than the median of the other seven "
+          f"cars, Car {second} {s_2:+.2f} °C. ") if s_2 is not None else "") +
+        (
          f"A car that has lost refrigerant cannot hold its cabin down when the load rises, so it shows "
          f"hot episodes the other cars do not. Comparing cars to each other cancels the weather, the "
          f"passenger load and the route, which all eight cars share." if v2 else
