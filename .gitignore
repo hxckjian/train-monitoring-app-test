@@ -26,3 +26,4 @@ scratch/
 # Model artifacts ARE committed on purpose: they are small, and the handoff
 # contract says a teammate must be able to run the smoke test without
 # retraining. If an artifact ever exceeds ~50 MB, revisit this.
+artifacts_cache/
