@@ -47,6 +47,22 @@ app/streamlit_app.py  (pages, no modelling code) ◄──────┘
   official column names, order, label spelling, timestamp format, ID set and
   extension rules. A malformed file is refused with the reason shown.
 
+## Data sources and datasets
+
+A fresh session starts on **Live only** (today's events plus the live feeds). Every
+file analysed becomes a named dataset in the fleet log ("Upload 19 Sep 02:10");
+the **Data source** bar on the Dashboard and Fleet view switches between live only,
+one dataset, or everything, and **Manage datasets** loads the competition test run
+or removes a dataset. Nothing is loaded behind the user's back. Re-analysing the
+same file adds no duplicate events.
+
+## Schematics
+
+Drawn only where the data supports them: the ACV train (cars coloured by their own
+ranking), the Rail train (each axle box by its own vibration RMS, the named rail
+dashed) and the selected Door cycle (leaf, motor, measured current). SHM has no
+location data, so it shows damage per file and a remaining-life forecast instead.
+
 ## Pages
 
 | Page | What it does |

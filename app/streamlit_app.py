@@ -28,6 +28,7 @@ import charts  # noqa: E402
 import components as ui  # noqa: E402
 import insight  # noqa: E402
 import livemap  # noqa: E402
+import schematics  # noqa: E402
 from subsystems.generic import monitor  # noqa: E402
 from core import cache as result_cache  # noqa: E402
 from core import events as event_log  # noqa: E402
@@ -116,7 +117,8 @@ def context_panel(key: str) -> dict:
         st.caption("The competition files carry no fleet metadata, so this is how an event gets a place on the "
                    "map and a train in the roster. Leave it unknown and the event still goes in the log.")
     return {"line": None if line == "unknown" else line, "train": None if train == "unknown" else train,
-            "station": None if station == "unknown" else station, "source": "run"}
+            "station": None if station == "unknown" else station, "source": "run",
+            "dataset": f"Upload {event_log.now().strftime('%d %b %H:%M')}"}
 
 
 def run_panel(spec: SubsystemSpec, button: str):
@@ -171,19 +173,64 @@ def evidence_line(card: dict, metric_short: str) -> str:
 # =================================================================== pages
 
 def session_results() -> dict:
-    """Session results; on a fresh session, the cached run over the provided test data."""
-    if not any(st.session_state.get(f"{k}_result") for k in SUBSYSTEMS) \
-            and not st.session_state.get("_cache_tried"):
-        st.session_state["_cache_tried"] = True
-        cached = result_cache.load() or {}
-        for k, v in cached.items():
-            st.session_state[f"{k}_result"] = v
-        st.session_state["_from_cache"] = bool(cached)
-        if cached and event_log.load().empty:
-            df = livemap.stations()
-            by_line = {code: [n for n in names if n in set(df["key"])] for code, (_, names) in livemap.LINES.items()}
-            event_log.seed_demo(cached, by_line)
+    """Results of this session only. Nothing is loaded behind the user's back: the
+    competition test run is a dataset the user picks in the data-source bar."""
     return {k: st.session_state.get(f"{k}_result") for k in SUBSYSTEMS}
+
+
+LIVE_ONLY = "Live only (today's events and live feeds)"
+EVERYTHING = "Everything in the log"
+
+
+def data_source_bar() -> tuple[str, "pd.DataFrame"]:
+    """The one control that decides what a page shows: live only, one dataset, or all.
+    Returns (choice, events filtered to that choice). Also manages datasets."""
+    log = event_log.with_status(event_log.load())
+    ds = event_log.datasets(log)
+    names = list(ds["dataset"]) if len(ds) else []
+    options = [LIVE_ONLY] + names + ([EVERYTHING] if names else [])
+    cached_available = result_cache.CACHE_PATH.exists() and "Competition test data (cached run)" not in names
+    c1, c2 = st.columns([3, 1.2], gap="medium")
+    with c1:
+        choice = st.selectbox("Data source", options, key="data_source",
+                              help="A fresh session starts on live only. Pick a dataset you uploaded, or everything.")
+    with c2:
+        with st.popover("Manage datasets", width="stretch"):
+            if cached_available:
+                st.caption("The competition test data has a cached run that can be loaded as a dataset.")
+                if st.button("Load competition test run", key="ds_load_cache"):
+                    cached = result_cache.load() or {}
+                    for k, v in cached.items():
+                        st.session_state[f"{k}_result"] = v
+                    rows = []
+                    for k, v in cached.items():
+                        rows += event_log.events_from_result(k, v, {"source": "run", "dataset": "Competition test data (cached run)"})
+                    a, sk = event_log.append_unique(rows)
+                    st.session_state["data_source"] = "Competition test data (cached run)"
+                    st.rerun()
+            if len(ds):
+                for r in ds.itertuples():
+                    a, b = st.columns([3, 1])
+                    with a:
+                        st.markdown(f"**{r.dataset}**  \n{r.events} events · {r.faults} faults · "
+                                    f"{event_log.fmt_time(r.first, '%d %b %Y')} → {event_log.fmt_time(r.last, '%d %b %Y')}")
+                    with b:
+                        if st.button("Remove", key=f"ds_rm_{abs(hash(r.dataset))}", width="stretch"):
+                            event_log.remove_dataset(r.dataset)
+                            for k in SUBSYSTEMS:
+                                st.session_state.pop(f"{k}_result", None)
+                            st.session_state["data_source"] = LIVE_ONLY
+                            st.rerun()
+            else:
+                st.caption("No datasets yet. Analyse a file on any subsystem page, or drop one on the dashboard.")
+    if choice == LIVE_ONLY:
+        today = pd.Timestamp(event_log.now()).normalize()
+        ev = log[log["time"] >= today] if len(log) else log
+    elif choice == EVERYTHING:
+        ev = log
+    else:
+        ev = log[log["dataset"] == choice] if len(log) else log
+    return choice, ev.reset_index(drop=True)
 
 
 def run_all(specs) -> None:
@@ -212,8 +259,8 @@ def overview_page() -> None:
     worst = max(states.values(), key=lambda x: rank[x])
     live = [sp for sp in SUBSYSTEMS.values() if sp.available and sp.test_inputs()]
 
-    # ---- hero: the log is the single source of truth; refreshes itself every 60 s
-    log_all = event_log.with_status(event_log.load())
+    # ---- data source first: live only, one dataset, or everything
+    choice, log_all = data_source_bar()
     n_open_faults = int(((log_all["state"] == "alert") & (log_all["status"] == "open")).sum()) if len(log_all) else 0
     n_open_watch = int(((log_all["state"] == "watch") & (log_all["status"] == "open")).sum()) if len(log_all) else 0
 
@@ -264,7 +311,8 @@ def overview_page() -> None:
                     try:
                         res = SUBSYSTEMS[k].module.analyze(as_files([(n, d) for n, d, _ in v]))
                         st.session_state[f"{k}_result"] = res
-                        added, skipped = event_log.append_unique(event_log.events_from_result(k, res, {"source": "run"}))
+                        added, skipped = event_log.append_unique(event_log.events_from_result(
+                            k, res, {"source": "run", "dataset": f"Upload {event_log.now().strftime('%d %b %H:%M')}"}))
                         st.toast(f"{SUBSYSTEMS[k].name}: {added} new event(s)"
                                  + (f", {skipped} duplicate(s) skipped" if skipped else ""), icon="✅")
                     except (ValueError, FileNotFoundError) as exc:
@@ -278,8 +326,7 @@ def overview_page() -> None:
         if live and st.button(f"Run all {len(live)} on the provided test data", width="stretch"):
             run_all(live)
             st.rerun()
-        if st.session_state.get("_from_cache"):
-            st.caption("Cached run of the competition test data is loaded; every page accepts uploads.")
+        st.caption("Or load the competition test run from Manage datasets.")
 
     # ---- counts for the KPI cards and the status bar
     n_assets = sum(len(r["files"]) if r and "files" in r else (len(r["cycles"]) if r else 0) for r in results.values())
@@ -350,7 +397,7 @@ def overview_page() -> None:
 
     # ---- work queue: open faults, acknowledge / close like a maintenance system
     html(ui.section("Work queue"))
-    log = event_log.with_status(event_log.load())
+    log = log_all
     q = log[log["state"].isin(["alert", "watch"])] if len(log) else log
     f1, f2, f3 = st.columns([1.6, 1.4, 2])
     with f1:
@@ -370,7 +417,7 @@ def overview_page() -> None:
     if not len(rows):
         html(ui.empty("Queue is clear", ["No faults or watches with this status. Run a subsystem page to add checks."]))
     else:
-        for x in rows.head(8).itertuples():
+        for wi, x in enumerate(rows.head(8).itertuples()):
             c1, c2, c3 = st.columns([4.2, 1.1, 1.1])
             with c1:
                 html(f'<div class="nw-panel" style="padding:12px 16px;margin-bottom:6px">'
@@ -381,7 +428,7 @@ def overview_page() -> None:
                      f'{txt(x.station, "location not known").title()} · {txt(x.detail, "")}'
                      + (f' · <i>{x.note}</i>' if x.note else "") + '</div></div>')
             with c2:
-                if x.status == "open" and st.button("Acknowledge", key=f"ack_{x.id}", width="stretch"):
+                if x.status == "open" and st.button("Acknowledge", key=f"ack_{wi}_{x.id}", width="stretch"):
                     event_log.set_status(x.id, "acknowledged")
                     st.rerun()
                 elif x.status == "acknowledged":
@@ -389,15 +436,15 @@ def overview_page() -> None:
                 elif x.status == "closed":
                     html(ui.pill("ok", "closed"))
             with c3:
-                if x.status != "closed" and st.button("Close", key=f"close_{x.id}", width="stretch"):
+                if x.status != "closed" and st.button("Close", key=f"close_{wi}_{x.id}", width="stretch"):
                     event_log.set_status(x.id, "closed", "closed from the dashboard")
                     st.rerun()
         if len(rows) > 8:
             with st.expander(f"All {len(rows)} in this view"):
                 st.dataframe(rows[["time", "subsystem_name", "state", "status", "title", "train", "station", "detail"]],
                              hide_index=True, width="stretch")
-    st.caption("Acknowledge when someone owns it, close when the inspection is done. Actions are kept beside the "
-               "log, so a re-run of the same file keeps its status. Open the Fleet view for the map and the roster.")
+    st.caption(f"Showing: {choice}. Acknowledge when someone owns it, close when the inspection is done. "
+               "Actions are kept beside the log, so a re-run of the same file keeps its status.")
 
     # ---- deeper tabs
     tab_glance, tab_trends, tab_zones, tab_data = st.tabs(["Subsystems", "Trends", "Zones", "Training data"])
@@ -561,6 +608,7 @@ def door_page() -> None:
         html(ui.chip(state, row["prediction"],
                      f"P(abnormal) {row['p_abnormal']:.0%} · {row['duration_s']:.2f}s · "
                      f"{row['start_time']}"))
+        html(schematics.door_cycle(row))
         plot(charts.door_cycle_detail(trace[trace["cycle"] == pick]))
 
     html(ui.section("Predictions"))
@@ -747,6 +795,9 @@ def rail_page() -> None:
         st.caption(f"Speed from {f['speed']['transitions']} pulse edges in one second: "
                    f"90-tooth wheel, 0.85 m diameter → {f['speed']['speed_m_s']:.2f} m/s.")
 
+    html(ui.section("The train and its rails"))
+    html(schematics.rail_train(f["grid"], f["prediction"]))
+    st.caption("Each dot is one axle box, coloured by its own vibration RMS in this recording; the dashed rail is the one the verdict names.")
     html(ui.section("Vibration energy by axle box"))
     plot(charts.rail_axle_grid(f["grid"]))
     st.caption("Vibration RMS per bearing, normalised to the loudest box in this recording. A "
@@ -831,6 +882,9 @@ def acv_page() -> None:
         st.warning(f"No usable cooling evidence for car(s) {', '.join(f['unobserved'])}: placed "
                    "last by identifier order, which does not mean they are healthy.")
 
+    html(ui.section("The train"))
+    html(schematics.acv_train(f["ranking"], pm, hf if v2 else None, f["unobserved"]))
+    st.caption("Cars in physical order; colour follows the ranking from this file's own telemetry.")
     left, right = st.columns([1, 1.4], gap="medium")
     with left:
         html(ui.section("All eight cars, ranked"))
@@ -863,7 +917,7 @@ def fleet_page() -> None:
                    "Every verdict the models produce goes into one fleet log with a time, a train "
                    "and a station. Filter it by time range, line, subsystem and state; the map "
                    "shows where events cluster, the roster shows which trains need attention."))
-    log = event_log.load()
+    choice, log = data_source_bar()
     df = insight.with_zones(livemap.stations())
     last = log["analysed_at"].max() if len(log) else None
 
@@ -928,9 +982,8 @@ def fleet_page() -> None:
         ("Stations affected", f"{n_stations}", "places with at least one event"),
     ]))
     if len(log) and (log["source"] == "demo").any():
-        st.caption("Includes a demo fleet seeded from the competition test data: each result was assigned a train "
-                   "set and a station and replayed over the past week, so the filters have something to show. "
-                   "Your own runs are logged with the train and station you pick on the subsystem page.")
+        st.caption("This dataset is the demo fleet: results assigned to train sets and stations and replayed over "
+                   "the past week, so the filters have something to show. Remove it under Manage datasets.")
 
     # ---- map + roster
     left, right = st.columns([1.7, 1], gap="medium")
@@ -1056,7 +1109,7 @@ def fleet_page() -> None:
     with st.expander("Log maintenance"):
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("Re-seed the demo fleet from the cached run", key="fleet_seed"):
+            if st.button("Seed a demo fleet from the competition test run", key="fleet_seed"):
                 cached = result_cache.load() or {}
                 by_line = {code: [n for n in names if n in set(df["key"])] for code, (_, names) in livemap.LINES.items()}
                 st.toast(f"{event_log.seed_demo(cached, by_line)} demo events written")
@@ -1427,5 +1480,12 @@ pages = {
         st.Page(method_page, title="Method", icon=":material/schema:", url_path="method"),
     ],
 }
-session_results()  # a fresh session starts from the cached run, on every page
-st.navigation(pages, position="top").run()
+import os as _os  # noqa: E402
+_test_page = _os.environ.get("NEBULA_TEST_PAGE")
+if _test_page:
+    _fn = {"": overview_page, "fleet": fleet_page, "door": door_page, "shm": shm_page, "rail": rail_page,
+           "acv": acv_page, "monitor": custom_page, "validation": validation_page,
+           "submission": submission_page, "method": method_page}[_test_page]
+    _fn()
+else:
+    st.navigation(pages, position="top").run()

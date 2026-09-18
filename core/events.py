@@ -15,13 +15,14 @@ to make it durable.
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
 
-EVENTS_PATH = Path(__file__).resolve().parents[1] / "data" / "events.jsonl"
+EVENTS_PATH = Path(os.environ.get("NEBULA_EVENTS_PATH") or (Path(__file__).resolve().parents[1] / "data" / "events.jsonl"))
 SGT = timezone(timedelta(hours=8))
 LINE_CODES = ("NSL", "EWL", "NEL", "CCL", "DTL", "TEL")
 SUBSYSTEM_NAME = {"door": "Door", "shm": "Structural health", "rail": "Rail corrugation", "acv": "Air conditioning"}
@@ -70,6 +71,7 @@ def events_from_result(key: str, res: dict, context: dict | None = None,
     Includes normal outcomes, so the log shows what was checked, not only faults."""
     ctx = {"train": None, "line": None, "station": None, "source": "upload", **(context or {})}
     at = recorded_at or now()
+    ctx.setdefault("dataset", None)
     rows: list[dict] = []
 
     def row(state, title, detail, severity, when, file_id, extra=None):
@@ -151,7 +153,7 @@ def append(rows: list[dict]) -> int:
 
 def load() -> pd.DataFrame:
     cols = ["time", "analysed_at", "subsystem", "subsystem_name", "state", "severity", "title", "detail",
-            "file_id", "train", "line", "station", "source", "id"]
+            "file_id", "train", "line", "station", "source", "id", "dataset"]
     if not EVENTS_PATH.exists():
         return pd.DataFrame(columns=cols)
     rows = []
@@ -179,7 +181,50 @@ def load() -> pd.DataFrame:
         df[c] = df[c].astype(object).where(df[c].notna(), None)
     if "id" not in df or df["id"].isna().any():
         df["id"] = [event_id(r) for _, r in df.iterrows()]
+    if "dataset" not in df:
+        df["dataset"] = None
+    df["dataset"] = df["dataset"].astype(object).where(df["dataset"].notna(), None)
+    df["dataset"] = [d or default_dataset(src, at) for d, src, at in zip(df["dataset"], df["source"], df["analysed_at"])]
+    # one row per event identity: logs written before de-duplication may hold repeats
+    df = df.sort_values("analysed_at").drop_duplicates("id", keep="last")
     return df.sort_values("time", ascending=False).reset_index(drop=True)
+
+
+def default_dataset(source, analysed_at) -> str:
+    """Name for rows logged before datasets existed."""
+    if source == "demo":
+        return "Demo fleet (seeded)"
+    try:
+        return f"Upload {pd.Timestamp(analysed_at).strftime('%d %b %H:%M')}"
+    except Exception:
+        return "Upload"
+
+
+def datasets(df: pd.DataFrame | None = None) -> pd.DataFrame:
+    """One row per dataset: name, source, events, faults, first/last time, analysed_at."""
+    df = load() if df is None else df
+    if df.empty:
+        return pd.DataFrame(columns=["dataset", "source", "events", "faults", "first", "last", "analysed_at"])
+    g = df.groupby("dataset").agg(source=("source", "first"), events=("id", "size"),
+                                  faults=("state", lambda s: int((s == "alert").sum())),
+                                  first=("time", "min"), last=("time", "max"),
+                                  analysed_at=("analysed_at", "max")).reset_index()
+    return g.sort_values("analysed_at", ascending=False).reset_index(drop=True)
+
+
+def remove_dataset(name: str) -> int:
+    """Delete every event of one dataset from the log. Returns rows removed."""
+    df = load()
+    keep = df[df["dataset"] != name]
+    removed = len(df) - len(keep)
+    if EVENTS_PATH.exists():
+        EVENTS_PATH.unlink()
+    if len(keep):
+        rows = keep.copy()
+        rows["time"] = rows["time"].map(lambda t: t.isoformat())
+        rows["analysed_at"] = rows["analysed_at"].map(lambda t: t.isoformat())
+        append(rows.to_dict("records"))
+    return removed
 
 
 def clear(source: str | None = None) -> None:
@@ -210,7 +255,7 @@ def seed_demo(results: dict, stations_by_line: dict[str, list[str]], days: int =
     for key, res in results.items():
         if not res:
             continue
-        ev = events_from_result(key, res, {"source": "demo"})
+        ev = events_from_result(key, res, {"source": "demo", "dataset": "Demo fleet (seeded)"})
         for e in ev:
             line = lines[order % len(lines)]
             sts = stations_by_line[line]
@@ -228,7 +273,7 @@ def seed_demo(results: dict, stations_by_line: dict[str, list[str]], days: int =
 
 # ------------------------------------------------------------------ alarm workflow
 
-ACTIONS_PATH = EVENTS_PATH.parent / "event_actions.jsonl"
+ACTIONS_PATH = EVENTS_PATH.with_name(EVENTS_PATH.stem + "_actions.jsonl")
 STATUS = ("open", "acknowledged", "closed")
 
 

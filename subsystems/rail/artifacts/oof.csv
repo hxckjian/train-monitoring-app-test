@@ -104,9 +104,9 @@ Train102.csv,Normal,Normal,0
 Train103.csv,Side II,Side II,4
 Train104.csv,Side II,Side II,3
 Train105.csv,Normal,Normal,2
-Train106.csv,Side I,Normal,0
+Train106.csv,Side I,Side II,0
 Train107.csv,Normal,Normal,3
-Train108.csv,Normal,Normal,1
+Train108.csv,Normal,Side II,1
 Train109.csv,Normal,Normal,3
 Train110.csv,Normal,Normal,3
 Train111.csv,Side II,Side II,0
@@ -119,12 +119,12 @@ Train117.csv,Normal,Normal,4
 Train118.csv,Normal,Normal,1
 Train119.csv,Normal,Normal,2
 Train120.csv,Normal,Normal,0
-Train121.csv,Side I,Normal,0
+Train121.csv,Side I,Side I,0
 Train122.csv,Normal,Normal,0
-Train123.csv,Normal,Normal,0
+Train123.csv,Normal,Side I,0
 Train124.csv,Normal,Normal,1
 Train125.csv,Normal,Normal,4
-Train126.csv,Normal,Normal,4
+Train126.csv,Normal,Side II,4
 Train127.csv,Side II,Side II,1
 Train128.csv,Normal,Normal,3
 Train129.csv,Normal,Normal,0
@@ -144,7 +144,7 @@ Train142.csv,Normal,Normal,1
 Train143.csv,Normal,Normal,2
 Train144.csv,Normal,Normal,0
 Train145.csv,Normal,Normal,3
-Train146.csv,Normal,Normal,2
+Train146.csv,Normal,Side II,2
 Train147.csv,Normal,Normal,3
 Train148.csv,Normal,Normal,3
 Train149.csv,Normal,Normal,3
@@ -162,7 +162,7 @@ Train160.csv,Normal,Normal,1
 Train161.csv,Normal,Normal,0
 Train162.csv,Normal,Normal,3
 Train163.csv,Side I,Side I,3
-Train164.csv,Side II,Side II,2
+Train164.csv,Side II,Side I,2
 Train165.csv,Normal,Normal,0
 Train166.csv,Normal,Normal,2
 Train167.csv,Normal,Normal,4
@@ -186,7 +186,7 @@ Train184.csv,Normal,Normal,1
 Train185.csv,Side I,Normal,1
 Train186.csv,Normal,Normal,2
 Train187.csv,Normal,Normal,0
-Train188.csv,Side II,Normal,3
+Train188.csv,Side II,Side II,3
 Train189.csv,Normal,Normal,2
 Train190.csv,Normal,Normal,1
 Train191.csv,Normal,Normal,2
@@ -195,12 +195,12 @@ Train193.csv,Normal,Normal,2
 Train194.csv,Side I,Side I,0
 Train195.csv,Normal,Normal,0
 Train196.csv,Normal,Normal,1
-Train197.csv,Normal,Normal,4
+Train197.csv,Normal,Side II,4
 Train198.csv,Side II,Side II,0
 Train199.csv,Side II,Side II,1
 Train200.csv,Normal,Normal,3
 Train201.csv,Normal,Normal,2
-Train202.csv,Side I,Normal,3
+Train202.csv,Side I,Side II,3
 Train203.csv,Normal,Normal,3
 Train204.csv,Normal,Normal,2
 Train205.csv,Normal,Normal,1

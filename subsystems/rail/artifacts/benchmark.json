@@ -1,0 +1,424 @@
+{
+  "protocol": "Pre-registered model search and benchmark for Rail, Door and ACV.\n\n    .venv/Scripts/python -m scripts.model_search [--rail] [--door] [--acv]\n\nProtocols (fixed before running; a null result stays a null result):\n\nRAIL   Candidates: random forest, extra trees, histogram gradient boosting, logistic\n       regression and RBF SVC over a small grid, on the ported feature set and on the\n       set with wavelength features. Two numbers per candidate:\n         (a) repeated grouped CV: 5 stratified group folds x 3 seeds, side-swap\n             augmentation inside training folds only, macro F1 pooled per repeat;\n         (b) NESTED estimate of the whole selection procedure: for each of the 5\n             original outer folds, the candidate is chosen by (a) restricted to the\n             outer-training files (3 inner folds x 1 seed), refitted, scored on the\n             outer fold. This is the honest number for \"we searched\".\n       Decision: adopt the top candidate by (a) only if its (a) mean beats the current\n       recipe's (a) mean by >= 0.01 AND the nested estimate is not below the current\n       recipe's (a) mean minus 0.01. Otherwise keep rail-v1.",
+  "n_files": 272,
+  "incumbent": {
+    "candidate": "rf_0.7_leaf1",
+    "features": "base",
+    "mean": 0.8134305658068794,
+    "std": 0.018961091854898915
+  },
+  "table": [
+    {
+      "candidate": "rf_0.7_leaf3",
+      "features": "base",
+      "repeats": [
+        0.8142,
+        0.8493,
+        0.8218
+      ],
+      "mean": 0.8284681193999605,
+      "std": 0.015084320978581353
+    },
+    {
+      "candidate": "hgb_lr0.1_dNone",
+      "features": "base",
+      "repeats": [
+        0.8384,
+        0.7714,
+        0.8603
+      ],
+      "mean": 0.82333862625429,
+      "std": 0.03782027254310684
+    },
+    {
+      "candidate": "rf_0.7_leaf1_600",
+      "features": "base+wl",
+      "repeats": [
+        0.7875,
+        0.8378,
+        0.8391
+      ],
+      "mean": 0.821455186654335,
+      "std": 0.02403432349825529
+    },
+    {
+      "candidate": "rf_0.7_leaf1",
+      "features": "base+wl",
+      "repeats": [
+        0.7875,
+        0.8378,
+        0.8351
+      ],
+      "mean": 0.8201169645558789,
+      "std": 0.02310809505881754
+    },
+    {
+      "candidate": "rf_0.7_leaf1_600",
+      "features": "base",
+      "repeats": [
+        0.7832,
+        0.8378,
+        0.8206
+      ],
+      "mean": 0.813848049579872,
+      "std": 0.022793870244405982
+    },
+    {
+      "candidate": "rf_0.7_leaf1",
+      "features": "base",
+      "repeats": [
+        0.7875,
+        0.8322,
+        0.8206
+      ],
+      "mean": 0.8134305658068794,
+      "std": 0.018961091854898915
+    },
+    {
+      "candidate": "rf_0.7_leaf3",
+      "features": "base+wl",
+      "repeats": [
+        0.7757,
+        0.8322,
+        0.8304
+      ],
+      "mean": 0.8127808500792911,
+      "std": 0.02626231013254454
+    },
+    {
+      "candidate": "rf_sqrt_leaf1",
+      "features": "base+wl",
+      "repeats": [
+        0.8288,
+        0.7786,
+        0.8247
+      ],
+      "mean": 0.8107072886368009,
+      "std": 0.02276146767173602
+    },
+    {
+      "candidate": "hgb_lr0.1_dNone",
+      "features": "base+wl",
+      "repeats": [
+        0.8126,
+        0.7856,
+        0.8336
+      ],
+      "mean": 0.8106054733132111,
+      "std": 0.019642913220767298
+    },
+    {
+      "candidate": "hgb_lr0.05_d3",
+      "features": "base+wl",
+      "repeats": [
+        0.811,
+        0.7845,
+        0.8337
+      ],
+      "mean": 0.8097316963478828,
+      "std": 0.020083937741613524
+    },
+    {
+      "candidate": "logreg_C0.1",
+      "features": "base+wl",
+      "repeats": [
+        0.8329,
+        0.7978,
+        0.7929
+      ],
+      "mean": 0.8078601215999713,
+      "std": 0.017832010045933967
+    },
+    {
+      "candidate": "logreg_C10.0",
+      "features": "base+wl",
+      "repeats": [
+        0.8212,
+        0.7924,
+        0.8008
+      ],
+      "mean": 0.8048028896282758,
+      "std": 0.012090629888118857
+    },
+    {
+      "candidate": "hgb_lr0.05_d3",
+      "features": "base",
+      "repeats": [
+        0.8115,
+        0.7714,
+        0.8271
+      ],
+      "mean": 0.8033085219334813,
+      "std": 0.02346599883251523
+    },
+    {
+      "candidate": "rf_sqrt_leaf1",
+      "features": "base",
+      "repeats": [
+        0.8042,
+        0.8065,
+        0.7979
+      ],
+      "mean": 0.8028262309069764,
+      "std": 0.00363123462961092
+    },
+    {
+      "candidate": "logreg_C1.0",
+      "features": "base+wl",
+      "repeats": [
+        0.8314,
+        0.7685,
+        0.8008
+      ],
+      "mean": 0.8002503486753995,
+      "std": 0.025659607527702584
+    },
+    {
+      "candidate": "logreg_C0.1",
+      "features": "base",
+      "repeats": [
+        0.8487,
+        0.7738,
+        0.7764
+      ],
+      "mean": 0.7996514732488834,
+      "std": 0.03467506451073849
+    },
+    {
+      "candidate": "logreg_C10.0",
+      "features": "base",
+      "repeats": [
+        0.8145,
+        0.7897,
+        0.7862
+      ],
+      "mean": 0.7967976156867587,
+      "std": 0.012576770102588486
+    },
+    {
+      "candidate": "et_0.7_leaf1",
+      "features": "base+wl",
+      "repeats": [
+        0.7721,
+        0.7984,
+        0.7974
+      ],
+      "mean": 0.7892713045109336,
+      "std": 0.012176985712250078
+    },
+    {
+      "candidate": "et_0.7_leaf3",
+      "features": "base",
+      "repeats": [
+        0.7867,
+        0.7648,
+        0.8156
+      ],
+      "mean": 0.7890139252250399,
+      "std": 0.02080691607984241
+    },
+    {
+      "candidate": "rf_sqrt_leaf3",
+      "features": "base+wl",
+      "repeats": [
+        0.7897,
+        0.7627,
+        0.8119
+      ],
+      "mean": 0.7881030256652526,
+      "std": 0.02011560735358724
+    },
+    {
+      "candidate": "et_0.7_leaf3",
+      "features": "base+wl",
+      "repeats": [
+        0.7841,
+        0.7703,
+        0.8015
+      ],
+      "mean": 0.7852929688267611,
+      "std": 0.012770856494746333
+    },
+    {
+      "candidate": "svc_C1.0",
+      "features": "base+wl",
+      "repeats": [
+        0.7979,
+        0.7717,
+        0.7761
+      ],
+      "mean": 0.7819017654713353,
+      "std": 0.011437565388067906
+    },
+    {
+      "candidate": "logreg_C1.0",
+      "features": "base",
+      "repeats": [
+        0.8304,
+        0.7483,
+        0.7634
+      ],
+      "mean": 0.7806710694490347,
+      "std": 0.03568532847808867
+    },
+    {
+      "candidate": "et_sqrt_leaf3",
+      "features": "base+wl",
+      "repeats": [
+        0.7663,
+        0.7757,
+        0.7578
+      ],
+      "mean": 0.7666126401801404,
+      "std": 0.0073130900009482054
+    },
+    {
+      "candidate": "rf_sqrt_leaf3",
+      "features": "base",
+      "repeats": [
+        0.7641,
+        0.7736,
+        0.7607
+      ],
+      "mean": 0.7661506945441205,
+      "std": 0.005467996354917076
+    },
+    {
+      "candidate": "et_0.7_leaf1",
+      "features": "base",
+      "repeats": [
+        0.7279,
+        0.7616,
+        0.8064
+      ],
+      "mean": 0.7652622627998568,
+      "std": 0.032153965126527136
+    },
+    {
+      "candidate": "et_sqrt_leaf3",
+      "features": "base",
+      "repeats": [
+        0.761,
+        0.7445,
+        0.76
+      ],
+      "mean": 0.7551722672570795,
+      "std": 0.007524434937617758
+    },
+    {
+      "candidate": "svc_C1.0",
+      "features": "base",
+      "repeats": [
+        0.7457,
+        0.7079,
+        0.6922
+      ],
+      "mean": 0.7152776277497047,
+      "std": 0.02247646059780384
+    },
+    {
+      "candidate": "svc_C10.0",
+      "features": "base+wl",
+      "repeats": [
+        0.7298,
+        0.7112,
+        0.6771
+      ],
+      "mean": 0.7060348122291248,
+      "std": 0.021856670548022324
+    },
+    {
+      "candidate": "svc_C10.0",
+      "features": "base",
+      "repeats": [
+        0.6491,
+        0.647,
+        0.6332
+      ],
+      "mean": 0.6431156262572179,
+      "std": 0.007032200763436627
+    },
+    {
+      "candidate": "et_sqrt_leaf1",
+      "features": "base+wl",
+      "repeats": [
+        0.6405,
+        0.6054,
+        0.6505
+      ],
+      "mean": 0.6321376763115468,
+      "std": 0.019347054065763043
+    },
+    {
+      "candidate": "et_sqrt_leaf1",
+      "features": "base",
+      "repeats": [
+        0.5741,
+        0.598,
+        0.6192
+      ],
+      "mean": 0.5971268764277823,
+      "std": 0.018420137177846973
+    }
+  ],
+  "best_by_repeated_cv": {
+    "candidate": "rf_0.7_leaf3",
+    "features": "base",
+    "repeats": [
+      0.8142,
+      0.8493,
+      0.8218
+    ],
+    "mean": 0.8284681193999605,
+    "std": 0.015084320978581353
+  },
+  "nested": {
+    "macro_f1_pooled": 0.8034397273008986,
+    "per_outer_fold": [
+      0.7517410126105778,
+      0.818840579710145,
+      0.786990786990787,
+      0.8962962962962964,
+      0.7632850241545893
+    ],
+    "mean": 0.8034307399524792,
+    "std": 0.05179817212873699,
+    "chosen_per_fold": [
+      {
+        "outer_fold": 0,
+        "chosen": "logreg_C0.1",
+        "features": "base",
+        "inner_score": 0.8553
+      },
+      {
+        "outer_fold": 1,
+        "chosen": "rf_sqrt_leaf1",
+        "features": "base+wl",
+        "inner_score": 0.7959
+      },
+      {
+        "outer_fold": 2,
+        "chosen": "logreg_C0.1",
+        "features": "base+wl",
+        "inner_score": 0.8729
+      },
+      {
+        "outer_fold": 3,
+        "chosen": "rf_0.7_leaf3",
+        "features": "base",
+        "inner_score": 0.7915
+      },
+      {
+        "outer_fold": 4,
+        "chosen": "logreg_C1.0",
+        "features": "base+wl",
+        "inner_score": 0.8048
+      }
+    ]
+  },
+  "decision": {
+    "adopt": true,
+    "reason": "best rf_0.7_leaf3/base repeated-CV 0.8285 vs incumbent 0.8134; nested estimate 0.8034"
+  },
+  "seconds": 5830
+}

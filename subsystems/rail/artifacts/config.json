@@ -1,6 +1,6 @@
 {
-  "model_version": "rail-v1",
-  "origin": "ported from PS3/final_streamlit_app (balanced RandomForest, 300 trees, max_features 0.7, seed 42); artifact sha256 5d97e135...9179",
+  "model_version": "rail-v2",
+  "origin": "ported from PS3/final_streamlit_app (balanced RandomForest, 300 trees, max_features 0.7, seed 42); artifact sha256 5d97e135...9179; v2 = rf_0.7_leaf3 on base features, adopted by scripts/model_search.py (artifacts/benchmark.json)",
   "labels": [
     "Normal",
     "Side I",
@@ -18,7 +18,7 @@
     "diameter_m": 0.85
   },
   "validation": {
-    "split": "5 stratified folds over 272 files, whole files kept together, the 2 duplicate feature rows grouped; side-swap augmentation applied inside training folds only; re-run of the selected recipe on the same folds in this workspace (the original build's 0.8524 was the maximum over five candidates)",
+    "split": "5 stratified grouped folds over 272 files (original fold ids), side-swap augmentation inside training folds; candidate chosen by 5x3 repeated grouped CV; nested estimate of the search reported alongside",
     "metric": "macro F1 over Normal / Side I / Side II (Rail Info Kit Section 4)",
     "mean_score": 0.829,
     "std_score": 0.0594,
@@ -37,7 +37,7 @@
     },
     "side_i_recall": 0.7143,
     "always_normal_baseline": 0.3083,
-    "in_sample_score": 0.9349,
+    "in_sample_score": 0.9171,
     "original_build_reported": {
       "mean_score": 0.8551,
       "std_score": 0.0502,
@@ -57,6 +57,9 @@
       "side_i_recall": 0.6429,
       "note": "best of 5 candidates selected on these folds in the original build"
     },
-    "fresh_shuffles_mean": 0.8134
+    "fresh_shuffles_mean": 0.8134,
+    "repeated_cv_mean": 0.8285,
+    "repeated_cv_std": 0.0151,
+    "nested_search_estimate": 0.8034
   }
 }
