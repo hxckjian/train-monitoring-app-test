@@ -27,6 +27,15 @@ LINE_CODES = ("NSL", "EWL", "NEL", "CCL", "DTL", "TEL")
 SUBSYSTEM_NAME = {"door": "Door", "shm": "Structural health", "rail": "Rail corrugation", "acv": "Air conditioning"}
 
 
+def fmt_time(t, pattern: str = "%d %b %H:%M") -> str:
+    """Never let a missing timestamp break a page."""
+    try:
+        ts = pd.Timestamp(t)
+        return "—" if pd.isna(ts) else ts.strftime(pattern)
+    except (ValueError, TypeError):
+        return "—"
+
+
 def roster(line: str, n: int = 8) -> list[str]:
     """Train sets on a line. A roster is operator data; this one is a placeholder
     naming scheme (line code + set number) until a real fleet list is loaded."""
@@ -132,8 +141,11 @@ def load() -> pd.DataFrame:
     for c in cols:
         if c not in df:
             df[c] = None
-    df["time"] = pd.to_datetime(df["time"], utc=True, errors="coerce").dt.tz_convert(SGT)
-    df["analysed_at"] = pd.to_datetime(df["analysed_at"], utc=True, errors="coerce").dt.tz_convert(SGT)
+    # ISO8601 explicitly: pandas otherwise infers the format from the first row and
+    # coerces every row with a different precision or offset to NaT.
+    df["time"] = pd.to_datetime(df["time"], utc=True, errors="coerce", format="ISO8601").dt.tz_convert(SGT)
+    df["analysed_at"] = pd.to_datetime(df["analysed_at"], utc=True, errors="coerce", format="ISO8601").dt.tz_convert(SGT)
+    df["time"] = df["time"].fillna(df["analysed_at"]).fillna(pd.Timestamp.now(tz=SGT))
     return df.sort_values("time", ascending=False).reset_index(drop=True)
 
 

@@ -32,3 +32,4 @@ artifacts_cache/
 predictions/analysis_cache.pkl
 data/events.jsonl
 data/event_actions.jsonl
+app/static/

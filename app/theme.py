@@ -198,6 +198,32 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 .nw-cell {{ display:inline-block; width:14px; height:14px; border-radius:3px; margin-right:3px; background:var(--surface-sunken); }}
 .nw-cell.ok {{ background:var(--status-ok); }} .nw-cell.watch {{ background:var(--status-watch); }} .nw-cell.alert {{ background:var(--status-alert); }}
 
+
+/* ---- motion: entrance, live bars, and a blinking warning state ---- */
+@keyframes nw-rise {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:none; }} }}
+@keyframes nw-blink {{ 0%,100% {{ box-shadow:0 0 0 0 rgba(224,67,79,.55); }} 50% {{ box-shadow:0 0 0 8px rgba(224,67,79,0); }} }}
+@keyframes nw-blink-text {{ 0%,100% {{ opacity:1; }} 50% {{ opacity:.35; }} }}
+@keyframes nw-grow {{ from {{ transform:scaleX(0); }} to {{ transform:scaleX(1); }} }}
+@keyframes nw-sweep {{ 0% {{ background-position:-200% 0; }} 100% {{ background-position:200% 0; }} }}
+.nw-card, .nw-panel, .nw-kpi, .nw-sys, .nw-fleet, .nw-rank, .nw-empty, .nw-step {{ animation: nw-rise .45s cubic-bezier(.2,.7,.2,1) both; }}
+.nw-kpis .nw-kpi:nth-child(2) {{ animation-delay:.06s; }} .nw-kpis .nw-kpi:nth-child(3) {{ animation-delay:.12s; }} .nw-kpis .nw-kpi:nth-child(4) {{ animation-delay:.18s; }}
+.nw-kpi, .nw-sys, .nw-panel, .nw-fleet {{ transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }}
+.nw-kpi:hover, .nw-sys:hover, .nw-fleet:hover {{ transform: translateY(-2px); border-color: var(--line-control); box-shadow: 0 8px 24px rgba(0,0,0,.25); }}
+.nw-rank-row .bar span, .nw-health span, .nw-stack span {{ transform-origin:left; animation: nw-grow .7s cubic-bezier(.2,.7,.2,1) both; }}
+.nw-chip.alert, .nw-pill.alert i, .nw-fleet.alert .nw-chip {{ animation: nw-blink 1.6s ease-out infinite; }}
+.nw-pill.alert {{ animation: nw-blink-text 1.6s ease-in-out infinite; }}
+.nw-card:has(.nw-chip.alert) {{ border-color: var(--status-alert); }}
+.nw-kpi.warn .v {{ color: var(--status-alert); animation: nw-blink-text 1.6s ease-in-out infinite; }}
+.nw-beacon {{ display:flex; align-items:center; gap:10px; background:var(--status-alert-soft); border:1px solid var(--status-alert);
+  color:var(--ink-primary); border-radius:var(--radius-lg); padding:10px 16px; margin:0 0 12px; font-size:14px; font-weight:600;
+  animation: nw-rise .45s both; }}
+.nw-beacon i {{ width:10px; height:10px; border-radius:50%; background:var(--status-alert); animation: nw-blink 1.2s ease-out infinite; flex:none; }}
+.nw-beacon .d {{ font-weight:400; color:var(--ink-secondary); margin-left:auto; font-size:12px; }}
+.nw-live {{ display:inline-flex; align-items:center; gap:6px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--status-ok); }}
+.nw-live i {{ width:7px; height:7px; border-radius:50%; background:var(--status-ok); animation: nw-blink-text 1.4s ease-in-out infinite; }}
+.nw-skeleton {{ background: linear-gradient(90deg, var(--surface-sunken) 25%, var(--surface-card) 50%, var(--surface-sunken) 75%); background-size:200% 100%; animation: nw-sweep 1.4s linear infinite; border-radius:var(--radius-md); }}
+@media (prefers-reduced-motion: reduce) {{ .nw-card, .nw-panel, .nw-kpi, .nw-sys, .nw-fleet, .nw-rank, .nw-empty, .nw-step, .nw-chip, .nw-pill i, .nw-pill, .nw-beacon i, .nw-live i, .nw-kpi.warn .v, .nw-rank-row .bar span, .nw-health span, .nw-stack span {{ animation:none !important; }} }}
+
 /* ---- streamlit widget polish ---- */
 .stButton > button, .stDownloadButton > button {{ border-radius: var(--radius-md); font-weight: 600;
   border: 1px solid var(--line-control); }}

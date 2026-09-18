@@ -219,6 +219,15 @@ def overview_page() -> None:
     acv_top = results["acv"]["files"][0]["ranking"][0] if results.get("acv") else None
     n_unassessed = sum(1 for v in states.values() if v == "unknown")
 
+    open_faults = 0
+    try:
+        _lg = event_log.with_status(event_log.load())
+        open_faults = int(((_lg["state"] == "alert") & (_lg["status"] == "open")).sum()) if len(_lg) else 0
+    except Exception:
+        pass
+    if open_faults:
+        html(ui.beacon(f"{open_faults} open fault(s) need an owner",
+                       "acknowledge or close them in the work queue below"))
     left, right = st.columns([1, 2.15], gap="medium")
     with left:
         html(ui.kpis([
@@ -226,7 +235,8 @@ def overview_page() -> None:
             ("Faults flagged", f"{n_alert}", f"{n_watch} on watch" if ev else "nothing run yet"),
             ("Worst fatigue", f"{shm_w:.2f}" if shm_w is not None else "—", "of fatigue life used"),
             ("Leak suspect", f"Car {acv_top}" if acv_top else "—", "most likely faulty car"),
-        ]).replace('class="nw-kpis"', 'class="nw-kpis two"'))
+        ]).replace('class="nw-kpis"', 'class="nw-kpis two"')
+              .replace('<div class="nw-kpi"><div class="l">Faults flagged', '<div class="nw-kpi warn"><div class="l">Faults flagged' if n_alert else '<div class="nw-kpi"><div class="l">Faults flagged'))
         html(ui.status_bar({"alert": n_alert, "watch": n_watch,
                             "ok": max(0, n_assets - n_alert - n_watch), "unknown": n_unassessed},
                            "Status overview · assets"))
@@ -302,7 +312,7 @@ def overview_page() -> None:
                 html(f'<div class="nw-panel" style="padding:12px 16px;margin-bottom:6px">'
                      f'<div class="h" style="display:flex;gap:10px;align-items:center">{ui.pill(x.state, ui.STATES[x.state][1])}'
                      f'<b>{x.title}</b><span class="mono" style="margin-left:auto;font-size:11px;color:var(--ink-muted)">'
-                     f'{pd.Timestamp(x.time).strftime("%d %b %H:%M")}</span></div>'
+                     f'{event_log.fmt_time(x.time)}</span></div>'
                      f'<div class="muted" style="font-size:12px;margin-top:4px">{x.subsystem_name} · {x.train or "train not known"} · '
                      f'{(x.station or "location not known").title()} · {x.detail}'
                      + (f' · <i>{x.note}</i>' if x.note else "") + '</div></div>')
@@ -837,10 +847,12 @@ def fleet_page() -> None:
         ev = ev[ev["state"].isin([smap[x] for x in states])]
 
     n_faults = int((ev["state"] == "alert").sum()) if len(ev) else 0
+    if n_faults:
+        html(ui.beacon(f"{n_faults} fault(s) in the selected range", "red markers on the map, lowest-health trains first in the roster"))
     n_trains = int(ev["train"].dropna().nunique()) if len(ev) else 0
     n_stations = int(ev["station"].dropna().nunique()) if len(ev) else 0
     html(ui.kpis([
-        ("Events in range", f"{len(ev)}", f"of {len(log)} logged · log updated {last.strftime('%d %b %H:%M') if last is not None else '—'}"),
+        ("Events in range", f"{len(ev)}", f"of {len(log)} logged · log updated {event_log.fmt_time(last)}"),
         ("Faults", f"{n_faults}", f"{int((ev['state'] == 'watch').sum()) if len(ev) else 0} on watch"),
         ("Trains affected", f"{n_trains}", "sets with at least one event"),
         ("Stations affected", f"{n_stations}", "places with at least one event"),
@@ -882,7 +894,7 @@ def fleet_page() -> None:
                 f'<span class="mono">{x.health:.0f}</span></td>'
                 f'<td class="cells">{cell(x.door)}{cell(x.shm)}{cell(x.rail)}{cell(x.acv)}</td>'
                 f'<td class="mono">{x.faults}/{x.events}</td>'
-                f'<td class="muted">{pd.Timestamp(x.last).strftime("%d %b %H:%M")}</td></tr>'
+                f'<td class="muted">{event_log.fmt_time(x.last)}</td></tr>'
                 for x in hi.head(14).itertuples())
             html(f'<div class="nw-panel"><table class="nw-table"><thead><tr><th>Train</th><th>Health</th>'
                  f'<th title="Door · Structure · Rail · Air-con">D·S·R·A</th><th>Faults</th><th>Latest</th></tr></thead>'
@@ -901,7 +913,7 @@ def fleet_page() -> None:
     if len(ev):
         show = ev.head(200).copy()
         rows = "".join(
-            f'<tr><td class="mono">{pd.Timestamp(x.time).strftime("%d %b %H:%M")}</td><td>{x.subsystem_name}</td>'
+            f'<tr><td class="mono">{event_log.fmt_time(x.time)}</td><td>{x.subsystem_name}</td>'
             f'<td>{x.title}</td><td class="muted">{x.detail}</td><td class="muted">{x.train or "—"} · {(x.station or "—").title()}</td>'
             f'<td>{ui.pill(x.state, ui.STATES[x.state][1])}</td></tr>'
             for x in show.head(25).itertuples())
@@ -916,7 +928,7 @@ def fleet_page() -> None:
         html(ui.empty("No events in this range", ["Widen the filters, or run a subsystem page."]))
 
     # ---- live status
-    html(ui.section("Live service status"))
+    html(ui.section("Live service status") + ui.live("live feeds"))
     if weather.get("ok") and not df.empty:
         focus = df[df["key"].isin(livemap.LINES[lines[0]][1])] if lines else df
         w = livemap.weather_near(weather, float(focus["lat"].mean()), float(focus["lon"].mean()))

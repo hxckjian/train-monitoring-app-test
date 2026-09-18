@@ -132,3 +132,13 @@ def event_table(rows: list[dict], empty: str = "No events yet") -> str:
     return (f'<div class="nw-panel"><table class="nw-table"><thead><tr><th></th><th>Subsystem</th>'
             f'<th>Event</th><th>Evidence</th><th>Severity</th><th>Status</th></tr></thead>'
             f'<tbody>{body}</tbody></table></div>')
+
+
+def beacon(text: str, detail: str = "") -> str:
+    """Blinking warning strip for the top of a page when something needs attention."""
+    return (f'<div class="nw-beacon" role="alert"><i></i>{escape(text)}'
+            + (f'<span class="d">{escape(detail)}</span>' if detail else "") + '</div>')
+
+
+def live(text: str = "Live") -> str:
+    return f'<span class="nw-live"><i></i>{escape(text)}</span>'

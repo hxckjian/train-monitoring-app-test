@@ -8,6 +8,7 @@ font = "sans serif"
 
 [server]
 headless = true
+enableStaticServing = true
 # A single Rail test file is ~17 MB; allow a handful per upload.
 maxUploadSize = 400
 
