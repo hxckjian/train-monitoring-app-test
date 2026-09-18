@@ -40,10 +40,10 @@ replacing `subsystems/<key>/` (keep `predict()` + `analyze()` and
 | Dataset cloned | DONE — `repo/`, 7.6 GB, gitignored |
 | Isolated conda env | DONE — `nebula-ps3` + Jupyter kernel |
 | All four scoring formulas | DONE — `scoring/metrics.py`, 28 tests pass |
-| **Door subsystem** | **DONE** — IoU-weighted F1 0.9909 ± 0.0182, smoke test 15/15 |
-| **SHM** | **DONE** — `subsystems/shm/`, 0.9729 ± 0.0067, smoke test 10/10 |
+| **Door subsystem** | **DONE** — IoU-weighted F1 0.9909 ± 0.0182, smoke test 15/15. Benchmark: extra trees scores 1.0 on all 5 blocks but the pre-registered rule needs +0.01, so the incumbent stays (`artifacts/benchmark.json`) |
+| **SHM** | **DONE** — `subsystems/shm/`, 0.9729 ± 0.0067, smoke test 10/10. 5-fold fit re-run on this machine 2026-09-19: identical, m 5.01–5.03 |
 | **Rail** | **DONE** — `subsystems/rail/`, ported from the teammate's `final_streamlit_app`. Honest re-run of the selected recipe on the same 5 grouped folds: **macro F1 0.829 ± 0.059** (their 0.852 was the max over five candidates). Wavelength experiment: null result, baseline kept (`artifacts/experiment_wavelength.json`) |
-| **ACV** | **DONE** — `subsystems/acv/`, ported from the same build; rank decay 0.9792 ± 0.0466 leave-one-case-out (case 04 ranks 2nd) |
+| **ACV** | **DONE** — `subsystems/acv/`, **acv-v2**: hot-episode fraction (> 2 °C above the other cars) with mean excess as tie-break. Leave-one-case-out **1.0** (v1 0.9792; v1 ranked case 04 second). Pre-registered dominance rule in `scripts/model_search.py`; margins are thin (see `artifacts/config.json` caveat); test top pick unchanged (Car 01) |
 | **Streamlit app** | **DONE** — `app/`, 10 pages in 3 menus: summary Dashboard (status strip, Run all, network map with line paths + zones, top events, trends), Fleet view (live feeds), 4 subsystem pages, Parameter monitor (label-free screen for new datasets), Validation (folds, sd, in-sample vs out-of-fold), Submission, Method. `DESIGN.md` records the design method and sources |
 | **predictions.zip** | **DONE** — `predictions/predictions.zip`, four CSVs, schema-validated (38 / 16 / 68 / 1 rows) |
 | Design system | Published |
