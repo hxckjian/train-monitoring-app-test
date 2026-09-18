@@ -67,6 +67,20 @@ strictly correct for Overall and is the stated plan.
 - **The labels were produced by rainflow counting + Miner's rule** — stated outright in the
   Info Kit §1.3. Recovering `(m, C)` is fitting the label-generating process, not guessing.
 
+**CONFIRMED — the hypothesis holds.** `scripts/shm_fit_sn.py`:
+
+- **m = 5.0250, C = 2.56022e+10.** m = 3 and m = 5 are the standard S-N exponents for
+  welded steel structures (EN 1993-1-9 / IIW), so recovering 5.025 to within 0.5% is
+  strong evidence the labels came from exactly this method.
+- **Official metric = 0.9728 ± 0.0070**, 5-fold CV with `(m, C)` fitted inside each fold.
+- m across folds 5.013–5.037 — stable, so it is a real property not fold noise. In-sample
+  2.61% vs CV 2.72% MAPE: a negligible gap, as expected of a genuine 2-parameter model.
+- Baselines on the same folds: constant-mean **0.0**, constant-median **0.085**,
+  RandomForest on summary statistics **0.732 ± 0.074**. **The fatigue physics beats
+  generic ML by +0.24** — a quarter of the subsystem score.
+- 581,120 samples per file, identical across all 80. 158,616–183,968 rainflow cycles per
+  file. Rainflow cache at `artifacts_cache/` (gitignored; regenerate in ~95 s).
+
 ### 2.2 Door  (`repo/PS3/02_Datasets/Door/`, 1.6 MB, 3 files)
 
 - `Train.csv` **18,037 rows**, `Test.csv` **6,254 rows**, `Train_Segments_Answer.csv`.
