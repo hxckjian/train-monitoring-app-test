@@ -138,6 +138,19 @@ def _persist(widget_key: str, store_key: str) -> None:
     st.session_state[store_key] = st.session_state[widget_key]
 
 
+def lta_key_field(label_visible: bool = True) -> str:
+    """The DataMall AccountKey, kept in a plain session key so every page can use it.
+    Streamlit applies a text input when you press Enter or click away."""
+    st.text_input("LTA DataMall AccountKey", type="password", key="lta_key_widget",
+                  value=st.session_state.get("lta_key_persist", ""),
+                  placeholder="paste the key, then press Enter",
+                  on_change=_persist, args=("lta_key_widget", "lta_key_persist"),
+                  label_visibility="visible" if label_visible else "collapsed",
+                  help="Register free at datamall.lta.gov.sg → My DataMall → request API access. Sent as the AccountKey "
+                       "header exactly as in the LTA guide. Kept in this browser session only; never stored or logged.")
+    return st.session_state.get("lta_key_persist", "")
+
+
 def view_toggle() -> None:
     """View and theme, side by side, on every page. Widget state is dropped by Streamlit
     when a page does not draw the widget, so the chosen values are copied into plain
@@ -532,6 +545,7 @@ def overview_page() -> None:
             mode = st.segmented_control("Colour", ["Line", "Zone"], default="Line", key="dash_map_mode",
                                         label_visibility="collapsed") or "Line"
         view, focus, pick = dash_map_view(df, log_all, line)
+        key = st.session_state.get("lta_key_persist", "")
         with c3:
             zones = insight.zones_for_line(df, line)
             html(ui.chip(worst, {"ok": "All assessed systems normal", "watch": "Watch",
@@ -541,9 +555,28 @@ def overview_page() -> None:
             html(ui.empty("Station map unavailable", ["data/stations/AmendmenttoMP2014RailStation.geojson is missing."]))
         else:
             weather = livemap.fetch_weather()
-            st.pydeck_chart(insight.network_deck(df, line, worst, "zones" if mode == "Zone" else "lines", weather, view,
-                                                 focus if pick != "Whole Singapore" else None),
-                            height=520, key=f"dash_map_{st.session_state.get('_dash_mapnonce', 0)}")
+            deck = insight.network_deck(df, line, worst, "zones" if mode == "Zone" else "lines", weather, view,
+                                        focus if pick != "Whole Singapore" else None)
+            alerts = livemap.fetch_train_alerts(key) if key else None
+            crowd = livemap.fetch_crowd(key, line) if key else None
+            deck.layers = insight.crowd_layer(crowd, df) + insight.alert_layer(alerts, df) + deck.layers
+            st.pydeck_chart(deck, height=520, key=f"dash_map_{st.session_state.get('_dash_mapnonce', 0)}_{bool(key)}")
+            if key:
+                if alerts and alerts.get("ok"):
+                    n_seg = len(alerts["segments"])
+                    html(ui.chip("alert" if n_seg else "ok",
+                                 f"DataMall: {n_seg} disruption segment(s)" if n_seg else "DataMall: all lines running",
+                                 f"fetched {alerts.get('fetched_at')} SGT · {len(alerts.get('messages', []))} planned notice(s)")
+                         + (" " + ui.chip("ok" if crowd.get('ok') else "unknown",
+                                          f"Platform crowding on {line}: {len(crowd['rows'])} stations" if crowd and crowd.get("ok") else "crowding unavailable",
+                                          "green low · amber moderate · red high · 10-min feed") if crowd else ""))
+                    for m in alerts.get("messages", []):
+                        st.caption("📋 " + m)
+                elif alerts:
+                    html(ui.chip("unknown", "DataMall unavailable", alerts.get("reason", "")))
+            else:
+                with st.expander("Add your LTA DataMall key for live service alerts and platform crowding"):
+                    lta_key_field()
             if pick == "Affected lines":
                 st.caption("Showing the lines that carry a fault or watch in the selected data: " + ", ".join(focus)
                            + ". Choose Whole Singapore to zoom back out.")
@@ -1151,11 +1184,7 @@ def fleet_page() -> None:
         states = st.multiselect("State", ["Fault", "Watch", "Normal"], default=["Fault", "Watch"],
                                 key="fleet_states", placeholder="Any")
     with f5:
-        key = st.text_input("LTA DataMall AccountKey", type="password", key="fleet_lta_key",
-                            placeholder="optional, session only",
-                            help="Register free at datamall.lta.gov.sg → My DataMall → request API access. The key "
-                                 "is sent as the AccountKey header, the same way as the curl example in the LTA guide. "
-                                 "Nothing is stored.")
+        key = lta_key_field()
     html(ui.section("Time range"))
     rng = st.segmented_control("Preset", [k for k in RANGES if k != "Custom"], default="7 days", key="fleet_range",
                                label_visibility="collapsed", width="stretch") or "7 days"
@@ -1295,6 +1324,8 @@ def fleet_page() -> None:
                 st.caption("A 401 means the key was rejected; check it was copied whole. DataMall keys can take a few minutes to activate.")
             elif al["status"] == 1 and not al["segments"]:
                 html(ui.chip("ok", "All lines running normally", f"DataMall status 1 · fetched {al['fetched_at']} SGT"))
+                for m in al["messages"]:
+                    st.caption("📋 " + m)
             else:
                 html(ui.chip("alert", "Disruption reported", f"{len(al['segments'])} affected segment(s) · fetched {al['fetched_at']} SGT"))
                 for seg in al["segments"]:
