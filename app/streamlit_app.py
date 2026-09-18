@@ -80,7 +80,7 @@ st.set_page_config(page_title="Nebula Wayside", page_icon="🚆", layout="wide")
 
 def _resolve_theme() -> str:
     """Auto follows the viewer's system setting (day or night); the hero toggle overrides it."""
-    pick = st.session_state.get("theme_pick", "Auto")
+    pick = st.session_state.get("theme_persist", "Auto")
     if pick in ("Day", "Night"):
         return "light" if pick == "Day" else "dark"
     try:
@@ -122,7 +122,7 @@ _plot_n = {"n": 0}
 
 
 def engineer_view() -> bool:
-    return st.session_state.get("view_mode", "Operator") == "Engineer"
+    return st.session_state.get("view_mode_persist", "Operator") == "Engineer"
 
 
 def plot(fig, key: str | None = None, always: bool = False) -> None:
@@ -134,10 +134,30 @@ def plot(fig, key: str | None = None, always: bool = False) -> None:
     st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key=key or f"fig_{_plot_n['n']}")
 
 
+def _persist(widget_key: str, store_key: str) -> None:
+    st.session_state[store_key] = st.session_state[widget_key]
+
+
 def view_toggle() -> None:
-    st.segmented_control("View", ["Operator", "Engineer"], default=st.session_state.get("view_mode", "Operator"),
-                         key="view_mode", label_visibility="collapsed",
-                         help="Operator: actions and plain words. Engineer: every chart, table and model detail.")
+    """View and theme, side by side, on every page. Widget state is dropped by Streamlit
+    when a page does not draw the widget, so the chosen values are copied into plain
+    session keys that every page reads."""
+    c1, c2, c3 = st.columns([1, 1, 2])
+    with c1:
+        st.segmented_control("View", ["Operator", "Engineer"],
+                             default=st.session_state.get("view_mode_persist", "Operator"),
+                             key="view_mode", label_visibility="collapsed",
+                             on_change=_persist, args=("view_mode", "view_mode_persist"),
+                             help="Operator: actions and plain words. Engineer: every chart, table and model detail.")
+    with c2:
+        st.segmented_control("Theme", ["Auto", "Day", "Night"],
+                             default=st.session_state.get("theme_persist", "Auto"),
+                             key="theme_pick", label_visibility="collapsed",
+                             on_change=_persist, args=("theme_pick", "theme_persist"),
+                             help="Auto follows your system's day/night setting.")
+    with c3:
+        st.caption("Operator view: actions and plain words. Engineer view: every chart and model detail. "
+                   "Theme follows your system unless you pick one. Both settings stay as you move between pages.")
 
 
 def how_to_read(key: str) -> None:
@@ -408,16 +428,7 @@ def overview_page() -> None:
     hero_fragment()
 
     # ---- quick drop: any competition-format file, routed by its own layout
-    v1, v2, v3 = st.columns([1, 1, 2])
-    with v1:
-        view_toggle()
-    with v2:
-        st.segmented_control("Theme", ["Auto", "Day", "Night"], default=st.session_state.get("theme_pick", "Auto"),
-                             key="theme_pick", label_visibility="collapsed",
-                             help="Auto follows your system's day/night setting.")
-    with v3:
-        st.caption("Operator view: actions and plain words. Engineer view: every chart and model detail. "
-                   "Theme follows your system unless you pick one.")
+    view_toggle()
     q1, q2 = st.columns([2.2, 1], gap="medium")
     with q1:
         drops = st.file_uploader("Drop any file here: the console works out which subsystem it is",
@@ -1091,6 +1102,7 @@ def fleet_page() -> None:
                    "Every verdict the models produce goes into one fleet log with a time, a train "
                    "and a station. Filter it by time range, line, subsystem and state; the map "
                    "shows where events cluster, the roster shows which trains need attention."))
+    view_toggle()
     choice, log = data_source_bar()
     df = insight.with_zones(livemap.stations())
     last = log["analysed_at"].max() if len(log) else None

@@ -24,22 +24,22 @@ def _base(fig: go.Figure, height: int, legend: bool = True) -> go.Figure:
         margin=dict(l=8, r=8, t=8, b=8),
         paper_bgcolor=T("surface-card"),
         plot_bgcolor=T("surface-plot"),
-        font=dict(family="IBM Plex Sans, system-ui, sans-serif", size=12,
+        font=dict(family="IBM Plex Sans, system-ui, sans-serif", size=13,
                   color=T("ink-secondary")),
         hoverlabel=dict(bgcolor=T("surface-card"), bordercolor=T("line-hairline"),
-                        font=dict(family="IBM Plex Mono, monospace", size=12,
+                        font=dict(family="IBM Plex Mono, monospace", size=13,
                                   color=T("ink-primary"))),
         showlegend=legend,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0,
-                    font=dict(color=T("ink-secondary"), size=12),
+                    font=dict(color=T("ink-secondary"), size=13),
                     bgcolor="rgba(0,0,0,0)"),
         bargap=0.12,
     )
     axis = dict(gridcolor=T("line-hairline"), linecolor=T("line-hairline"),
                 zerolinecolor=T("line-hairline"), tickcolor=T("line-hairline"),
-                tickfont=dict(family="IBM Plex Mono, monospace", size=11,
+                tickfont=dict(family="IBM Plex Mono, monospace", size=12,
                               color=T("ink-muted")),
-                title_font=dict(size=12, color=T("ink-secondary")))
+                title_font=dict(size=13, color=T("ink-secondary")))
     fig.update_xaxes(**axis)
     fig.update_yaxes(**axis)
     return fig

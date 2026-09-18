@@ -92,21 +92,24 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
 [data-testid="stIconMaterial"] {{ font-family: "Material Symbols Rounded" !important; }}
 .stApp code, .stApp pre {{ font-family: var(--font-mono); }}
 [data-testid="stHeader"] {{ background: var(--surface-page); z-index: 1000; }}
-.block-container {{ padding-top: 4.2rem; padding-bottom: 4rem; max-width: 1240px; }}
+.block-container {{ padding-top: 4.2rem; padding-bottom: 4rem; max-width: 1320px; }}
+.stApp [data-testid="stCaptionContainer"], .stApp [data-testid="stCaptionContainer"] p {{ font-size: 14px !important; line-height: 20px; }}
+.stApp .stButtonGroup button, .stApp .stButton > button {{ font-size: 15px; }}
+.stApp [data-testid="stWidgetLabel"] p {{ font-size: 14px; }}
 h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-spacing: -0.01em; }}
 
 /* ---- page header ---- */
-.nw-eyebrow {{ font-size: 11px; line-height: 15px; letter-spacing: .08em; text-transform: uppercase;
+.nw-eyebrow {{ font-size: 12px; line-height: 16px; letter-spacing: .08em; text-transform: uppercase;
   color: var(--ink-muted); font-weight: 600; margin: 0 0 6px; display:flex; align-items:center; gap:8px; }}
 .nw-eyebrow .dot {{ width: 8px; height: 8px; border-radius: 2px; display:inline-block; }}
 .nw-h1 {{ font-size: 32px; line-height: 36px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; }}
 .nw-lede {{ font-size: 16px; line-height: 22px; color: var(--ink-secondary); margin: 0 0 20px; max-width: 760px; }}
-.nw-section {{ font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: .06em;
+.nw-section {{ font-size: 13px; line-height: 18px; font-weight: 600; letter-spacing: .06em;
   text-transform: uppercase; color: var(--ink-muted); margin: 28px 0 10px; }}
 
 /* ---- status chip ---- */
 .nw-chip {{ display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:999px;
-  font-size:12px; line-height:16px; font-weight:600; letter-spacing:.04em; white-space:nowrap; }}
+  font-size:13px; line-height:18px; font-weight:600; letter-spacing:.04em; white-space:nowrap; }}
 .nw-chip .g {{ font-size: 11px; line-height: 1; }}
 .nw-chip .d {{ color: var(--ink-secondary); font-weight: 400; letter-spacing: 0; }}
 .nw-chip.ok {{ background: var(--status-ok-soft); color: var(--status-ok); }}
@@ -118,38 +121,38 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 .nw-card {{ background: var(--surface-card); border: 1px solid var(--line-hairline);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-card); padding: 24px; }}
 .nw-card .head {{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }}
-.nw-card .sub {{ font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); }}
+.nw-card .sub {{ font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); }}
 .nw-card h3 {{ font-size:22px; line-height:28px; font-weight:600; margin:0 0 8px; }}
 .nw-card .meaning {{ font-size:16px; line-height:23px; color:var(--ink-secondary); margin:0 0 16px; }}
 .nw-card .action {{ background:var(--surface-sunken); border-radius:var(--radius-md); padding:12px 16px;
   font-size:15px; line-height:22px; margin:0; }}
 .nw-card .action b {{ font-weight:600; }}
-.nw-card .evidence {{ font-family:var(--font-mono); font-size:11px; line-height:16px; color:var(--ink-muted); margin:12px 0 0; }}
+.nw-card .evidence {{ font-family:var(--font-mono); font-size:13px; line-height:18px; color:var(--ink-muted); margin:12px 0 0; }}
 
 /* ---- KPI tiles ---- */
 .nw-kpis {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin: 0 0 4px; }}
 .nw-kpi {{ background:var(--surface-card); border:1px solid var(--line-hairline); border-radius:var(--radius-lg); padding:16px 18px; }}
-.nw-kpi .l {{ font-size:12px; line-height:16px; font-weight:500; color:var(--ink-secondary); margin-bottom:6px; }}
-.nw-kpi .v {{ font-family:var(--font-mono); font-size:28px; line-height:32px; font-weight:500; color:var(--ink-primary); }}
-.nw-kpi .s {{ font-size:12px; line-height:16px; color:var(--ink-muted); margin-top:4px; }}
+.nw-kpi .l {{ font-size:14px; line-height:18px; font-weight:500; color:var(--ink-secondary); margin-bottom:6px; }}
+.nw-kpi .v {{ font-family:var(--font-mono); font-size:30px; line-height:34px; font-weight:500; color:var(--ink-primary); }}
+.nw-kpi .s {{ font-size:13px; line-height:18px; color:var(--ink-muted); margin-top:4px; }}
 
 /* ---- subsystem tiles (overview) ---- */
 .nw-sys {{ background:var(--surface-card); border:1px solid var(--line-hairline); border-radius:var(--radius-lg);
   padding:20px; height:100%; position:relative; overflow:hidden; }}
 .nw-sys .bar {{ position:absolute; left:0; top:0; right:0; height:4px; }}
 .nw-sys .name {{ font-size:18px; line-height:24px; font-weight:600; margin:6px 0 4px; }}
-.nw-sys .q {{ font-size:14px; line-height:20px; color:var(--ink-secondary); margin:0 0 14px; min-height:40px; }}
+.nw-sys .q {{ font-size:15px; line-height:21px; color:var(--ink-secondary); margin:0 0 14px; min-height:40px; }}
 .nw-sys .score {{ font-family:var(--font-mono); font-size:26px; line-height:30px; font-weight:500; }}
-.nw-sys .metric {{ font-size:12px; color:var(--ink-muted); margin-top:2px; }}
-.nw-sys .split {{ font-family:var(--font-mono); font-size:11px; line-height:15px; color:var(--ink-muted);
+.nw-sys .metric {{ font-size:13px; color:var(--ink-muted); margin-top:2px; }}
+.nw-sys .split {{ font-family:var(--font-mono); font-size:12px; line-height:17px; color:var(--ink-muted);
   border-top:1px solid var(--line-hairline); margin-top:14px; padding-top:10px; }}
 
 /* ---- steps ---- */
 .nw-steps {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }}
 .nw-step {{ border:1px dashed var(--line-control); border-radius:var(--radius-lg); padding:16px 18px; background:transparent; }}
-.nw-step .n {{ font-family:var(--font-mono); font-size:12px; color:var(--ink-muted); }}
-.nw-step .t {{ font-size:15px; font-weight:600; margin:4px 0 2px; }}
-.nw-step .b {{ font-size:13px; line-height:18px; color:var(--ink-secondary); }}
+.nw-step .n {{ font-family:var(--font-mono); font-size:13px; color:var(--ink-muted); }}
+.nw-step .t {{ font-size:16px; font-weight:600; margin:4px 0 2px; }}
+.nw-step .b {{ font-size:14px; line-height:20px; color:var(--ink-secondary); }}
 
 /* ---- empty / pending state ---- */
 .nw-empty {{ background:var(--surface-sunken); border-radius:var(--radius-lg); padding:28px; }}
@@ -160,15 +163,15 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 /* ---- car rank ---- */
 .nw-rank {{ background:var(--surface-card); border:1px solid var(--line-hairline); border-radius:var(--radius-lg); padding:14px 18px; }}
 .nw-rank-row {{ display:grid; grid-template-columns:24px 64px 1fr 120px; align-items:center; gap:10px; padding:6px 0; }}
-.nw-rank-row .r {{ font-family:var(--font-mono); font-size:12px; color:var(--ink-muted); }}
+.nw-rank-row .r {{ font-family:var(--font-mono); font-size:13px; color:var(--ink-muted); }}
 .nw-rank-row .id {{ font-weight:600; font-size:14px; }}
 .nw-rank-row .bar {{ height:12px; background:var(--surface-sunken); border-radius:999px; overflow:hidden; }}
 .nw-rank-row .bar span {{ display:block; height:100%; background:var(--series-1); border-radius:999px; }}
 .nw-rank-row.top .bar span {{ background:var(--status-alert); }}
 .nw-rank-row.top .id {{ color:var(--status-alert); }}
 .nw-rank-row.na .v {{ color:var(--ink-muted); }}
-.nw-rank-row .v {{ font-family:var(--font-mono); font-size:12px; color:var(--ink-secondary); text-align:right; }}
-.nw-rank .cap {{ font-size:12px; color:var(--ink-muted); margin-top:8px; }}
+.nw-rank-row .v {{ font-family:var(--font-mono); font-size:13px; color:var(--ink-secondary); text-align:right; }}
+.nw-rank .cap {{ font-size:13px; color:var(--ink-muted); margin-top:8px; }}
 
 /* ---- fleet board ---- */
 .nw-fleet {{ background:var(--surface-card); border:1px solid var(--line-hairline); border-left:4px solid var(--status-unknown);
@@ -176,36 +179,37 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 .nw-fleet.ok {{ border-left-color:var(--status-ok); }}
 .nw-fleet.watch {{ border-left-color:var(--status-watch); }}
 .nw-fleet.alert {{ border-left-color:var(--status-alert); }}
-.nw-fleet .n {{ font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); margin-bottom:6px; }}
+.nw-fleet .n {{ font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); margin-bottom:6px; }}
 .nw-fleet .h {{ display:flex; align-items:center; gap:10px; font-size:15px; font-weight:600; }}
-.nw-fleet .d {{ font-size:13px; color:var(--ink-secondary); margin-top:4px; }}
+.nw-fleet .d {{ font-size:14px; color:var(--ink-secondary); margin-top:4px; }}
 
 /* ---- dashboard panels ---- */
 .nw-panel {{ background:var(--surface-card); border:1px solid var(--line-hairline); border-radius:var(--radius-lg); padding:18px 20px; margin-bottom:12px; }}
-.nw-panel .t {{ font-size:15px; font-weight:600; margin-bottom:12px; }}
-.nw-panel .muted {{ color:var(--ink-muted); font-size:13px; margin:0; }}
+.nw-panel .t {{ font-size:16px; font-weight:600; margin-bottom:12px; }}
+.nw-panel .muted {{ color:var(--ink-muted); font-size:14px; margin:0; }}
 .nw-stack {{ display:flex; height:14px; border-radius:999px; overflow:hidden; background:var(--surface-sunken); gap:2px; }}
 .nw-stack span {{ display:block; height:100%; }}
 .nw-stack .alert, .nw-legend i.alert {{ background:var(--status-alert); }}
 .nw-stack .watch, .nw-legend i.watch {{ background:var(--status-watch); }}
 .nw-stack .ok, .nw-legend i.ok {{ background:var(--status-ok); }}
 .nw-stack .unknown, .nw-legend i.unknown {{ background:var(--line-control); }}
-.nw-legend {{ display:flex; flex-wrap:wrap; gap:14px; margin-top:10px; font-size:12px; color:var(--ink-secondary); }}
+.nw-legend {{ display:flex; flex-wrap:wrap; gap:14px; margin-top:10px; font-size:13px; color:var(--ink-secondary); }}
 .nw-legend i {{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }}
-.nw-pill {{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; white-space:nowrap; }}
+.nw-pill {{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; white-space:nowrap; }}
 .nw-pill i {{ width:8px; height:8px; border-radius:50%; display:inline-block; }}
 .nw-pill.alert {{ color:var(--status-alert); }} .nw-pill.alert i {{ background:var(--status-alert); }}
 .nw-pill.watch {{ color:var(--status-watch); }} .nw-pill.watch i {{ background:var(--status-watch); }}
 .nw-pill.ok {{ color:var(--status-ok); }} .nw-pill.ok i {{ background:var(--status-ok); }}
 .nw-pill.unknown {{ color:var(--ink-muted); }} .nw-pill.unknown i {{ background:var(--line-control); }}
-.nw-table {{ width:100%; border-collapse:collapse; font-size:13px; }}
-.nw-table th {{ text-align:left; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--line-hairline); }}
+.nw-table {{ width:100%; border-collapse:collapse; font-size:14px; }}
+.nw-table th {{ text-align:left; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--line-hairline); }}
 .nw-table td {{ padding:10px 8px; border-bottom:1px solid var(--line-hairline); vertical-align:top; }}
 .nw-table tr:last-child td {{ border-bottom:0; }}
-.nw-table .mono {{ font-family:var(--font-mono); color:var(--ink-muted); font-size:12px; }}
-.nw-table .muted {{ color:var(--ink-secondary); font-size:12px; }}
-.nw-kpis.two {{ grid-template-columns:repeat(2, 1fr); }}
-.nw-kpi .v.sm {{ font-size:24px; line-height:28px; }}
+.nw-table .mono {{ font-family:var(--font-mono); color:var(--ink-muted); font-size:13px; }}
+.nw-table .muted {{ color:var(--ink-secondary); font-size:13px; }}
+.nw-kpis.two {{ grid-template-columns:1fr; gap:8px; }}
+.nw-kpis.two .nw-kpi {{ display:grid; grid-template-columns:1fr auto; grid-template-areas:"l v" "s v"; align-items:center; column-gap:14px; padding:14px 18px; }}
+.nw-kpis.two .nw-kpi .l {{ grid-area:l; margin:0; }} .nw-kpis.two .nw-kpi .v {{ grid-area:v; font-size:28px; line-height:32px; }} .nw-kpis.two .nw-kpi .s {{ grid-area:s; margin-top:2px; }}
 .nw-hero {{ display:flex; align-items:center; gap:10px; margin:0 0 10px; }}
 .nw-hero .n {{ font-family:var(--font-mono); font-size:22px; font-weight:500; background:var(--surface-card); border:1px solid var(--line-hairline); border-radius:999px; padding:6px 16px; }}
 
@@ -222,21 +226,18 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 @keyframes nw-blink-text {{ 0%,100% {{ opacity:1; }} 50% {{ opacity:.35; }} }}
 @keyframes nw-grow {{ from {{ transform:scaleX(0); }} to {{ transform:scaleX(1); }} }}
 @keyframes nw-sweep {{ 0% {{ background-position:-200% 0; }} 100% {{ background-position:200% 0; }} }}
-.nw-card, .nw-panel, .nw-kpi, .nw-sys, .nw-fleet, .nw-rank, .nw-empty, .nw-step {{ animation: nw-rise .45s cubic-bezier(.2,.7,.2,1) both; }}
-.nw-kpis .nw-kpi:nth-child(2) {{ animation-delay:.06s; }} .nw-kpis .nw-kpi:nth-child(3) {{ animation-delay:.12s; }} .nw-kpis .nw-kpi:nth-child(4) {{ animation-delay:.18s; }}
-.nw-kpi, .nw-sys, .nw-panel, .nw-fleet {{ transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }}
-.nw-kpi:hover, .nw-sys:hover, .nw-fleet:hover {{ transform: translateY(-2px); border-color: var(--line-control); box-shadow: var(--shadow-card); }}
+/* Motion rule: an animation must show a real quantity or a real state change.
+   Bars grow to their value; the beacon blinks only while faults are open; the
+   schematics move at the measured rate. Nothing floats, lifts or slides for decoration. */
 .nw-rank-row .bar span, .nw-health span, .nw-stack span {{ transform-origin:left; animation: nw-grow .7s cubic-bezier(.2,.7,.2,1) both; }}
-.nw-chip.alert, .nw-pill.alert i, .nw-fleet.alert .nw-chip {{ animation: nw-blink 1.6s ease-out infinite; }}
-.nw-pill.alert {{ animation: nw-blink-text 1.6s ease-in-out infinite; }}
 .nw-card:has(.nw-chip.alert) {{ border-color: var(--status-alert); }}
-.nw-kpi.warn .v {{ color: var(--status-alert); animation: nw-blink-text 1.6s ease-in-out infinite; }}
+.nw-kpi.warn .v {{ color: var(--status-alert); }}
 .nw-beacon {{ display:flex; align-items:center; gap:10px; background:var(--status-alert-soft); border:1px solid var(--status-alert);
-  color:var(--ink-primary); border-radius:var(--radius-lg); padding:10px 16px; margin:0 0 12px; font-size:14px; font-weight:600;
+  color:var(--ink-primary); border-radius:var(--radius-lg); padding:12px 18px; margin:0 0 14px; font-size:15px; font-weight:600;
   animation: nw-rise .45s both; }}
 .nw-beacon i {{ width:10px; height:10px; border-radius:50%; background:var(--status-alert); animation: nw-blink 1.2s ease-out infinite; flex:none; }}
-.nw-beacon .d {{ font-weight:400; color:var(--ink-secondary); margin-left:auto; font-size:12px; }}
-.nw-live {{ display:inline-flex; align-items:center; gap:6px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--status-ok); }}
+.nw-beacon .d {{ font-weight:400; color:var(--ink-secondary); margin-left:auto; font-size:13px; }}
+.nw-live {{ display:inline-flex; align-items:center; gap:6px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--status-ok); }}
 .nw-live i {{ width:7px; height:7px; border-radius:50%; background:var(--status-ok); animation: nw-blink-text 1.4s ease-in-out infinite; }}
 .nw-skeleton {{ background: linear-gradient(90deg, var(--surface-sunken) 25%, var(--surface-card) 50%, var(--surface-sunken) 75%); background-size:200% 100%; animation: nw-sweep 1.4s linear infinite; border-radius:var(--radius-md); }}
 @media (prefers-reduced-motion: reduce) {{ .nw-card, .nw-panel, .nw-kpi, .nw-sys, .nw-fleet, .nw-rank, .nw-empty, .nw-step, .nw-chip, .nw-pill i, .nw-pill, .nw-beacon i, .nw-live i, .nw-kpi.warn .v, .nw-rank-row .bar span, .nw-health span, .nw-stack span {{ animation:none !important; }} }}
@@ -249,35 +250,32 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
   animation: nw-rise .5s both; display:grid; grid-template-columns: 1fr auto; gap:18px; align-items:center; }}
 .nw-hero-card::before {{ content:""; position:absolute; inset:-40% -20% auto auto; width:420px; height:420px; border-radius:50%;
   background: radial-gradient(closest-side, rgba(46,143,212,.28), transparent); pointer-events:none; }}
-.nw-hero-card .k {{ font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-muted); font-weight:600; }}
+.nw-hero-card .k {{ font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-muted); font-weight:600; }}
 .nw-hero-card .t {{ font-size:34px; line-height:38px; font-weight:600; letter-spacing:-.02em; margin:4px 0 6px; }}
 .nw-hero-card .s {{ font-size:15px; color:var(--ink-secondary); max-width:720px; }}
-.nw-hero-card .wx {{ text-align:right; font-family:var(--font-mono); font-size:13px; color:var(--ink-secondary); line-height:1.5; }}
-.nw-hero-card .wx .e {{ display:inline-block; font-size:44px; line-height:1; animation: nw-float 3.2s ease-in-out infinite; filter: drop-shadow(0 6px 14px rgba(0,0,0,.35)); }}
+.nw-hero-card .wx {{ text-align:right; font-family:var(--font-mono); font-size:14px; color:var(--ink-secondary); line-height:1.5; }}
+.nw-hero-card .wx .e {{ display:inline-block; font-size:44px; line-height:1; filter: drop-shadow(0 6px 14px rgba(0,0,0,.35)); }}
 .nw-hero-card .wx .big {{ font-size:26px; color:var(--ink-primary); font-weight:500; }}
 .nw-panel, .nw-kpi, .nw-card, .nw-sys, .nw-fleet, .nw-rank {{ background: color-mix(in srgb, var(--surface-card) 82%, transparent);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }}
-.nw-emoji {{ display:inline-block; margin-right:6px; animation: nw-float 3.6s ease-in-out infinite; }}
+.nw-emoji {{ display:inline-block; margin-right:6px; }}
 .nw-drop {{ border:1px dashed var(--line-control); border-radius:var(--radius-lg); padding:10px 14px; font-size:13px; color:var(--ink-secondary); }}
 .nw-drop b {{ color:var(--ink-primary); }}
 [data-testid="stFileUploaderDropzone"] {{ min-height:64px; }}
 
-.nw-urg {{ font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:4px 10px; border-radius:999px; }}
-.nw-urg.alert {{ background:var(--status-alert); color:#fff; animation: nw-blink 1.6s ease-out infinite; }}
+.nw-urg {{ font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:4px 10px; border-radius:999px; }}
+.nw-urg.alert {{ background:var(--status-alert); color:#fff; }}
 .nw-urg.watch {{ background:var(--status-watch); color:#111; }}
 .nw-urg.ok {{ background:var(--status-ok-soft); color:var(--status-ok); }}
 .nw-act.alert {{ border-left:4px solid var(--status-alert); }} .nw-act.watch {{ border-left:4px solid var(--status-watch); }} .nw-act.ok {{ border-left:4px solid var(--status-ok); }}
-.nw-tips {{ margin:0; padding-left:18px; font-size:14px; line-height:1.55; color:var(--ink-secondary); }}
+.nw-tips {{ margin:0; padding-left:18px; font-size:15px; line-height:1.6; color:var(--ink-secondary); }}
 .nw-tips li {{ margin:4px 0; }}
 
 /* ---- transitions ---- */
 html {{ scroll-behavior: smooth; }}
-[data-testid="stTabs"] [role="tabpanel"] > div {{ animation: nw-fade .3s ease-out both; }}
 @keyframes nw-fade {{ from {{ opacity:0; }} to {{ opacity:1; }} }}
 [data-testid="stExpander"] details summary, .stButton > button, a[data-testid="stPageLink-NavLink"] {{ transition: background .15s ease, transform .15s ease, border-color .15s ease; }}
-a[data-testid="stPageLink-NavLink"]:hover {{ transform: translateX(3px); }}
 [data-testid="stSegmentedControl"] button {{ transition: background .15s ease, color .15s ease; }}
-[data-testid="stDeckGlJsonChart"], [data-testid="stPlotlyChart"] {{ animation: nw-fade .4s ease-out both; }}
 
 /* ---- widgets follow the console theme (Day / Night override included) ---- */
 /* segmented controls, pills, radio-like button groups */
