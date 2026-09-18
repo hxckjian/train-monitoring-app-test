@@ -74,3 +74,31 @@ def steps(items: list[tuple[str, str]]) -> str:
 def empty(title: str, paragraphs: list[str]) -> str:
     body = "".join(f"<p>{escape(p)}</p>" for p in paragraphs)
     return f'<div class="nw-empty">{chip("unknown", "Model pending")}<h3>{escape(title)}</h3>{body}</div>'
+
+
+def car_rank(cars: list[tuple[str, float | None]], baseline: str | None = None) -> str:
+    """CarRank: every car listed best-first; rank 1 wears status-alert, the rest series-1.
+    Bars normalise to the top score so a near-tie looks like a near-tie."""
+    finite = [s for _, s in cars if s is not None]
+    lo = min(finite) if finite else 0.0
+    hi = max(finite) if finite else 1.0
+    span = (hi - lo) or 1.0
+    rows = []
+    for i, (cid, s) in enumerate(cars, 1):
+        if s is None:
+            w, cls, txt = 0, "na", "no cooling evidence"
+        else:
+            w = max(6, round(100 * (s - lo) / span)) if hi > lo else 100
+            cls, txt = ("top" if i == 1 else ""), f"{s:+.2f} °C"
+        rows.append(f'<div class="nw-rank-row {cls}"><span class="r">{i}</span>'
+                    f'<span class="id">Car {escape(cid)}</span>'
+                    f'<span class="bar"><span style="width:{w}%"></span></span>'
+                    f'<span class="v">{escape(txt)}</span></div>')
+    cap = f'<div class="cap">{escape(baseline)}</div>' if baseline else ""
+    return f'<div class="nw-rank">{"".join(rows)}{cap}</div>'
+
+
+def fleet_row(state: str, name: str, headline: str, detail: str) -> str:
+    return (f'<div class="nw-fleet {state}"><div class="n">{escape(name)}</div>'
+            f'<div class="h">{chip(state)}<span>{escape(headline)}</span></div>'
+            f'<div class="d">{escape(detail)}</div></div>')

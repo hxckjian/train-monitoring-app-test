@@ -1,0 +1,273 @@
+file_id,truth,estimate,fold
+Train1.csv,Normal,Normal,1
+Train2.csv,Side II,Side II,4
+Train3.csv,Normal,Normal,4
+Train4.csv,Normal,Normal,4
+Train5.csv,Normal,Normal,1
+Train6.csv,Normal,Normal,4
+Train7.csv,Normal,Normal,4
+Train8.csv,Normal,Normal,3
+Train9.csv,Normal,Normal,1
+Train10.csv,Normal,Normal,2
+Train11.csv,Normal,Normal,4
+Train12.csv,Side II,Side II,4
+Train13.csv,Normal,Normal,3
+Train14.csv,Normal,Normal,1
+Train15.csv,Normal,Normal,3
+Train16.csv,Normal,Normal,3
+Train17.csv,Normal,Normal,3
+Train18.csv,Normal,Normal,2
+Train19.csv,Normal,Normal,2
+Train20.csv,Normal,Normal,4
+Train21.csv,Normal,Normal,3
+Train22.csv,Normal,Normal,0
+Train23.csv,Normal,Normal,1
+Train24.csv,Normal,Normal,2
+Train25.csv,Normal,Normal,4
+Train26.csv,Side II,Side II,3
+Train27.csv,Normal,Normal,4
+Train28.csv,Normal,Normal,0
+Train29.csv,Normal,Normal,2
+Train30.csv,Side II,Side II,2
+Train31.csv,Normal,Normal,3
+Train32.csv,Normal,Normal,1
+Train33.csv,Normal,Normal,3
+Train34.csv,Normal,Normal,0
+Train35.csv,Normal,Normal,0
+Train36.csv,Normal,Normal,4
+Train37.csv,Normal,Normal,3
+Train38.csv,Normal,Normal,3
+Train39.csv,Normal,Normal,0
+Train40.csv,Normal,Normal,2
+Train41.csv,Normal,Normal,4
+Train42.csv,Normal,Normal,2
+Train43.csv,Side II,Side II,1
+Train44.csv,Normal,Side II,1
+Train45.csv,Normal,Normal,0
+Train46.csv,Normal,Normal,1
+Train47.csv,Normal,Normal,2
+Train48.csv,Normal,Normal,0
+Train49.csv,Normal,Normal,0
+Train50.csv,Normal,Normal,3
+Train51.csv,Normal,Normal,0
+Train52.csv,Normal,Normal,0
+Train53.csv,Side II,Side II,0
+Train54.csv,Normal,Normal,3
+Train55.csv,Normal,Normal,0
+Train56.csv,Normal,Normal,2
+Train57.csv,Normal,Normal,1
+Train58.csv,Normal,Normal,4
+Train59.csv,Normal,Normal,1
+Train60.csv,Normal,Side II,4
+Train61.csv,Normal,Normal,4
+Train62.csv,Side I,Side I,3
+Train63.csv,Normal,Normal,0
+Train64.csv,Normal,Normal,1
+Train65.csv,Normal,Normal,4
+Train66.csv,Normal,Normal,3
+Train67.csv,Normal,Normal,2
+Train68.csv,Normal,Normal,2
+Train69.csv,Normal,Normal,4
+Train70.csv,Normal,Normal,4
+Train71.csv,Normal,Normal,0
+Train72.csv,Side II,Side II,2
+Train73.csv,Normal,Normal,0
+Train74.csv,Normal,Normal,1
+Train75.csv,Normal,Normal,4
+Train76.csv,Normal,Normal,3
+Train77.csv,Normal,Normal,2
+Train78.csv,Normal,Normal,3
+Train79.csv,Normal,Normal,0
+Train80.csv,Normal,Normal,3
+Train81.csv,Normal,Normal,0
+Train82.csv,Normal,Normal,1
+Train83.csv,Side I,Side I,4
+Train84.csv,Normal,Normal,0
+Train85.csv,Normal,Normal,2
+Train86.csv,Normal,Normal,4
+Train87.csv,Normal,Normal,1
+Train88.csv,Normal,Normal,4
+Train89.csv,Normal,Normal,3
+Train90.csv,Normal,Normal,1
+Train91.csv,Normal,Normal,0
+Train92.csv,Normal,Normal,3
+Train93.csv,Side II,Side II,3
+Train94.csv,Normal,Normal,3
+Train95.csv,Normal,Normal,2
+Train96.csv,Normal,Normal,3
+Train97.csv,Normal,Normal,4
+Train98.csv,Normal,Normal,1
+Train99.csv,Normal,Normal,3
+Train100.csv,Side I,Side I,2
+Train101.csv,Normal,Normal,4
+Train102.csv,Normal,Normal,0
+Train103.csv,Side II,Side II,4
+Train104.csv,Side II,Side II,3
+Train105.csv,Normal,Normal,2
+Train106.csv,Side I,Normal,0
+Train107.csv,Normal,Normal,3
+Train108.csv,Normal,Normal,1
+Train109.csv,Normal,Normal,3
+Train110.csv,Normal,Normal,3
+Train111.csv,Side II,Side II,0
+Train112.csv,Normal,Normal,2
+Train113.csv,Normal,Normal,2
+Train114.csv,Normal,Normal,4
+Train115.csv,Normal,Normal,3
+Train116.csv,Normal,Normal,2
+Train117.csv,Normal,Normal,4
+Train118.csv,Normal,Normal,1
+Train119.csv,Normal,Normal,2
+Train120.csv,Normal,Normal,0
+Train121.csv,Side I,Normal,0
+Train122.csv,Normal,Normal,0
+Train123.csv,Normal,Normal,0
+Train124.csv,Normal,Normal,1
+Train125.csv,Normal,Normal,4
+Train126.csv,Normal,Normal,4
+Train127.csv,Side II,Side II,1
+Train128.csv,Normal,Normal,3
+Train129.csv,Normal,Normal,0
+Train130.csv,Normal,Normal,4
+Train131.csv,Normal,Normal,2
+Train132.csv,Normal,Normal,1
+Train133.csv,Normal,Normal,1
+Train134.csv,Normal,Normal,2
+Train135.csv,Normal,Normal,1
+Train136.csv,Normal,Normal,3
+Train137.csv,Side I,Side I,1
+Train138.csv,Normal,Normal,3
+Train139.csv,Normal,Normal,1
+Train140.csv,Normal,Normal,3
+Train141.csv,Normal,Normal,2
+Train142.csv,Normal,Normal,1
+Train143.csv,Normal,Normal,2
+Train144.csv,Normal,Normal,0
+Train145.csv,Normal,Normal,3
+Train146.csv,Normal,Normal,2
+Train147.csv,Normal,Normal,3
+Train148.csv,Normal,Normal,3
+Train149.csv,Normal,Normal,3
+Train150.csv,Side I,Side I,2
+Train151.csv,Normal,Normal,1
+Train152.csv,Normal,Normal,4
+Train153.csv,Normal,Normal,1
+Train154.csv,Normal,Normal,0
+Train155.csv,Normal,Normal,3
+Train156.csv,Normal,Normal,0
+Train157.csv,Normal,Normal,2
+Train158.csv,Normal,Normal,4
+Train159.csv,Normal,Normal,4
+Train160.csv,Normal,Normal,1
+Train161.csv,Normal,Normal,0
+Train162.csv,Normal,Normal,3
+Train163.csv,Side I,Side I,3
+Train164.csv,Side II,Side II,2
+Train165.csv,Normal,Normal,0
+Train166.csv,Normal,Normal,2
+Train167.csv,Normal,Normal,4
+Train168.csv,Normal,Normal,4
+Train169.csv,Normal,Normal,4
+Train170.csv,Side I,Side I,4
+Train171.csv,Normal,Normal,4
+Train172.csv,Normal,Normal,2
+Train173.csv,Normal,Normal,1
+Train174.csv,Normal,Normal,1
+Train175.csv,Normal,Normal,4
+Train176.csv,Normal,Side II,4
+Train177.csv,Normal,Side I,1
+Train178.csv,Normal,Normal,0
+Train179.csv,Side II,Side II,0
+Train180.csv,Side I,Normal,2
+Train181.csv,Normal,Normal,1
+Train182.csv,Normal,Normal,3
+Train183.csv,Normal,Normal,0
+Train184.csv,Normal,Normal,1
+Train185.csv,Side I,Normal,1
+Train186.csv,Normal,Normal,2
+Train187.csv,Normal,Normal,0
+Train188.csv,Side II,Normal,3
+Train189.csv,Normal,Normal,2
+Train190.csv,Normal,Normal,1
+Train191.csv,Normal,Normal,2
+Train192.csv,Normal,Normal,4
+Train193.csv,Normal,Normal,2
+Train194.csv,Side I,Side I,0
+Train195.csv,Normal,Normal,0
+Train196.csv,Normal,Normal,1
+Train197.csv,Normal,Normal,4
+Train198.csv,Side II,Side II,0
+Train199.csv,Side II,Side II,1
+Train200.csv,Normal,Normal,3
+Train201.csv,Normal,Normal,2
+Train202.csv,Side I,Normal,3
+Train203.csv,Normal,Normal,3
+Train204.csv,Normal,Normal,2
+Train205.csv,Normal,Normal,1
+Train206.csv,Normal,Normal,1
+Train207.csv,Side II,Side II,0
+Train208.csv,Normal,Normal,1
+Train209.csv,Normal,Normal,0
+Train210.csv,Normal,Normal,2
+Train211.csv,Normal,Normal,2
+Train212.csv,Normal,Normal,3
+Train213.csv,Side I,Side I,1
+Train214.csv,Normal,Normal,0
+Train215.csv,Normal,Normal,1
+Train216.csv,Side II,Side II,1
+Train217.csv,Side II,Side II,4
+Train218.csv,Normal,Normal,3
+Train219.csv,Normal,Normal,0
+Train220.csv,Normal,Normal,1
+Train221.csv,Normal,Normal,2
+Train222.csv,Normal,Normal,0
+Train223.csv,Normal,Normal,4
+Train224.csv,Normal,Normal,0
+Train225.csv,Normal,Normal,4
+Train226.csv,Normal,Normal,4
+Train227.csv,Normal,Normal,2
+Train228.csv,Normal,Normal,4
+Train229.csv,Normal,Normal,2
+Train230.csv,Normal,Normal,4
+Train231.csv,Normal,Normal,4
+Train232.csv,Normal,Normal,4
+Train233.csv,Normal,Side II,1
+Train234.csv,Normal,Normal,3
+Train235.csv,Normal,Normal,0
+Train236.csv,Normal,Normal,3
+Train237.csv,Normal,Normal,4
+Train238.csv,Normal,Normal,3
+Train239.csv,Normal,Normal,3
+Train240.csv,Side II,Side II,4
+Train241.csv,Normal,Normal,2
+Train242.csv,Normal,Normal,1
+Train243.csv,Normal,Normal,1
+Train244.csv,Normal,Normal,0
+Train245.csv,Normal,Normal,2
+Train246.csv,Normal,Normal,3
+Train247.csv,Normal,Normal,1
+Train248.csv,Side II,Side II,1
+Train249.csv,Normal,Normal,0
+Train250.csv,Normal,Normal,2
+Train251.csv,Normal,Side II,0
+Train252.csv,Normal,Normal,2
+Train253.csv,Normal,Normal,2
+Train254.csv,Normal,Normal,0
+Train255.csv,Normal,Normal,3
+Train256.csv,Normal,Normal,2
+Train257.csv,Normal,Normal,4
+Train258.csv,Normal,Normal,1
+Train259.csv,Normal,Normal,1
+Train260.csv,Normal,Normal,0
+Train261.csv,Normal,Normal,2
+Train262.csv,Normal,Normal,1
+Train263.csv,Normal,Normal,3
+Train264.csv,Normal,Normal,0
+Train265.csv,Side II,Side I,2
+Train266.csv,Normal,Normal,0
+Train267.csv,Side II,Side II,2
+Train268.csv,Normal,Normal,4
+Train269.csv,Normal,Normal,0
+Train270.csv,Normal,Normal,2
+Train271.csv,Normal,Normal,1
+Train272.csv,Normal,Normal,0

@@ -75,14 +75,14 @@ SUBSYSTEMS: dict[str, SubsystemSpec] = {s.key: s for s in [
         key="rail", name="Rail corrugation",
         question="Is either rail corrugated, and on which side?",
         predicts="Normal / Side I / Side II per 1-second recording",
-        method="planned: wavelength-domain band energy per side, speed-normalised",
-        accepts=("csv",), multi_file=True, package=None,
+        method="per-side vibration/shock statistics + spectral bands, class-balanced random forest",
+        accepts=("csv",), multi_file=True, package="subsystems.rail",
         test_glob="Rail_Corrugation/Test/Test*.csv"),
     SubsystemSpec(
         key="acv", name="Air conditioning",
         question="Which car's air conditioning is leaking refrigerant?",
         predicts="all 8 cars ranked from most to least likely faulty",
-        method="planned: cooling-setpoint drift relative to the other cars",
-        accepts=("xlsx",), multi_file=False, package=None,
+        method="cabin temperature excess over the other cars during cooling, ranked",
+        accepts=("xlsx",), multi_file=True, package="subsystems.acv",
         test_glob="ACV/Test/*.xlsx"),
 ]}

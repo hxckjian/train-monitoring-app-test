@@ -1,0 +1,60 @@
+{
+  "validation": "5 stratified group folds; identical feature rows grouped; candidate selection on these folds (development estimate)",
+  "class_counts": {
+    "Normal": 234,
+    "Side II": 24,
+    "Side I": 14
+  },
+  "duplicate_feature_rows": 2,
+  "candidate_macro_f1": {
+    "existing_extra_trees": 0.6053864168618267,
+    "balanced_rbf_svc": 0.6517624488959666,
+    "wide_extra_trees": 0.7599919460384577,
+    "balanced_random_forest": 0.8523680241327299,
+    "regularized_rbf_svc": 0.7554570799782782
+  },
+  "selected": "balanced_random_forest",
+  "majority_baseline_macro_f1": 0.308300395256917,
+  "classification": {
+    "Normal": {
+      "precision": 0.9743589743589743,
+      "recall": 0.9743589743589743,
+      "f1-score": 0.9743589743589743,
+      "support": 234.0
+    },
+    "Side I": {
+      "precision": 0.8181818181818182,
+      "recall": 0.6428571428571429,
+      "f1-score": 0.72,
+      "support": 14.0
+    },
+    "Side II": {
+      "precision": 0.8148148148148148,
+      "recall": 0.9166666666666666,
+      "f1-score": 0.8627450980392157,
+      "support": 24.0
+    },
+    "accuracy": 0.9522058823529411,
+    "macro avg": {
+      "precision": 0.8691185357852024,
+      "recall": 0.8446275946275946,
+      "f1-score": 0.8523680241327299,
+      "support": 272.0
+    },
+    "weighted avg": {
+      "precision": 0.9522430184194891,
+      "recall": 0.9522058823529411,
+      "f1-score": 0.9514186851211074,
+      "support": 272.0
+    }
+  },
+  "random_seed": 42,
+  "artifact_sha256": "5d97e13522ec52dda0e09d35bd4a78e381eb975beb9199e72f2d070648639179",
+  "versions": {
+    "numpy": "2.4.2",
+    "pandas": "2.3.3",
+    "scipy": "1.17.0",
+    "scikit-learn": "1.8.0",
+    "joblib": "1.5.3"
+  }
+}

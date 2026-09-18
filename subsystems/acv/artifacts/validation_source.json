@@ -1,0 +1,62 @@
+{
+  "validation": "leave-one-case-out, all eight cars held out together; 6 cases only; model selection development estimate",
+  "mean_rank_decay": {
+    "peer_temperature_baseline": 0.9791666666666666,
+    "balanced_logistic": 0.9791666666666666
+  },
+  "selected": "peer_temperature_baseline",
+  "cases": [
+    {
+      "file": "acv_case_01.xlsx",
+      "peer_temperature_baseline_rank": 1,
+      "peer_temperature_baseline_score": 1.0,
+      "balanced_logistic_rank": 1,
+      "balanced_logistic_score": 1.0
+    },
+    {
+      "file": "acv_case_02.xlsx",
+      "peer_temperature_baseline_rank": 1,
+      "peer_temperature_baseline_score": 1.0,
+      "balanced_logistic_rank": 1,
+      "balanced_logistic_score": 1.0
+    },
+    {
+      "file": "acv_case_03.xlsx",
+      "peer_temperature_baseline_rank": 1,
+      "peer_temperature_baseline_score": 1.0,
+      "balanced_logistic_rank": 1,
+      "balanced_logistic_score": 1.0
+    },
+    {
+      "file": "acv_case_04.xlsx",
+      "peer_temperature_baseline_rank": 2,
+      "peer_temperature_baseline_score": 0.875,
+      "balanced_logistic_rank": 2,
+      "balanced_logistic_score": 0.875
+    },
+    {
+      "file": "acv_case_05.xlsx",
+      "peer_temperature_baseline_rank": 1,
+      "peer_temperature_baseline_score": 1.0,
+      "balanced_logistic_rank": 1,
+      "balanced_logistic_score": 1.0
+    },
+    {
+      "file": "acv_case_06.xlsx",
+      "peer_temperature_baseline_rank": 1,
+      "peer_temperature_baseline_score": 1.0,
+      "balanced_logistic_rank": 1,
+      "balanced_logistic_score": 1.0
+    }
+  ],
+  "random_ranking_expected_score": 0.5625,
+  "random_seed": 42,
+  "artifact_sha256": "22c3f537d451e00f0b15b7d60f54efe67e20509e406fb961a719e48713daa277",
+  "versions": {
+    "numpy": "2.4.2",
+    "pandas": "2.3.3",
+    "scipy": "1.17.0",
+    "scikit-learn": "1.8.0",
+    "joblib": "1.5.3"
+  }
+}

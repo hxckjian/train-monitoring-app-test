@@ -1,0 +1,14 @@
+{
+  "model_version": "acv-v1",
+  "origin": "ported from PS3/final_streamlit_app; fixed label-free rule (model=None) selected over a balanced logistic model that tied it; artifact sha256 22c3f537...a277",
+  "rule": "during valid cooling, each car's cabin temperature minus the contemporaneous median of the other cars; cars ranked by the mean of that excess",
+  "n_training_cases": 6,
+  "validation": {
+    "split": "leave-one-case-out over the 6 labelled cases, all eight cars of a case held out together",
+    "metric": "linear rank decay (n - (r - 1)) / n, averaged over cases (ACV Info Kit Section 4)",
+    "mean_score": 0.9792,
+    "std_score": 0.0466,
+    "per_case_rank": {"acv_case_01.xlsx": 1, "acv_case_02.xlsx": 1, "acv_case_03.xlsx": 1, "acv_case_04.xlsx": 2, "acv_case_05.xlsx": 1, "acv_case_06.xlsx": 1},
+    "random_ranking_baseline": 0.5625
+  }
+}

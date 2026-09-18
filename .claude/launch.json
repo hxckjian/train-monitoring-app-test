@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "nebula-app",
-      "runtimeExecutable": "C:\\Users\\Asus\\anaconda3\\envs\\nebula-ps3\\python.exe",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
       "runtimeArgs": ["-m", "streamlit", "run", "app/streamlit_app.py", "--server.port", "8501"],
       "port": 8501
     }

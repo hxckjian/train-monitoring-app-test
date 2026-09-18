@@ -139,6 +139,30 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 .nw-empty h3 {{ font-size:18px; margin:10px 0 6px; }}
 .nw-empty p {{ color:var(--ink-secondary); font-size:15px; line-height:22px; margin:0 0 8px; max-width:720px; }}
 
+
+/* ---- car rank ---- */
+.nw-rank {{ background:var(--surface-card); border:1px solid var(--line-hairline); border-radius:var(--radius-lg); padding:14px 18px; }}
+.nw-rank-row {{ display:grid; grid-template-columns:24px 64px 1fr 120px; align-items:center; gap:10px; padding:6px 0; }}
+.nw-rank-row .r {{ font-family:var(--font-mono); font-size:12px; color:var(--ink-muted); }}
+.nw-rank-row .id {{ font-weight:600; font-size:14px; }}
+.nw-rank-row .bar {{ height:12px; background:var(--surface-sunken); border-radius:999px; overflow:hidden; }}
+.nw-rank-row .bar span {{ display:block; height:100%; background:var(--series-1); border-radius:999px; }}
+.nw-rank-row.top .bar span {{ background:var(--status-alert); }}
+.nw-rank-row.top .id {{ color:var(--status-alert); }}
+.nw-rank-row.na .v {{ color:var(--ink-muted); }}
+.nw-rank-row .v {{ font-family:var(--font-mono); font-size:12px; color:var(--ink-secondary); text-align:right; }}
+.nw-rank .cap {{ font-size:12px; color:var(--ink-muted); margin-top:8px; }}
+
+/* ---- fleet board ---- */
+.nw-fleet {{ background:var(--surface-card); border:1px solid var(--line-hairline); border-left:4px solid var(--status-unknown);
+  border-radius:var(--radius-lg); padding:14px 16px; margin-bottom:10px; }}
+.nw-fleet.ok {{ border-left-color:var(--status-ok); }}
+.nw-fleet.watch {{ border-left-color:var(--status-watch); }}
+.nw-fleet.alert {{ border-left-color:var(--status-alert); }}
+.nw-fleet .n {{ font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); margin-bottom:6px; }}
+.nw-fleet .h {{ display:flex; align-items:center; gap:10px; font-size:15px; font-weight:600; }}
+.nw-fleet .d {{ font-size:13px; color:var(--ink-secondary); margin-top:4px; }}
+
 /* ---- streamlit widget polish ---- */
 .stButton > button, .stDownloadButton > button {{ border-radius: var(--radius-md); font-weight: 600;
   border: 1px solid var(--line-control); }}

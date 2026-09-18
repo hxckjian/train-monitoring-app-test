@@ -5,10 +5,17 @@ a non-technical person, and the tool that generates `predictions.zip`.
 
 ## Run it
 
-From the project root, in the `nebula-ps3` environment:
+From the project root, in the project venv (`python -m venv .venv` then
+`.venv/Scripts/python -m pip install -r requirements.txt`):
 
 ```bash
-streamlit run app/streamlit_app.py
+.venv/Scripts/python -m streamlit run app/streamlit_app.py
+```
+
+Or from the command line, the same pipeline without the UI:
+
+```bash
+.venv/Scripts/python -m scripts.build_predictions
 ```
 
 Then open http://localhost:8501.
@@ -47,8 +54,10 @@ app/streamlit_app.py  (pages, no modelling code) ◄──────┘
 | Overview | four subsystem tiles with live/pending status and the cross-validated score |
 | Door | segment a stream, verdict card, cycle timeline, sustained-current scatter, per-cycle inspector, download |
 | Structural health | damage per file against D = 1, per-file cycle and damage-share profiles, stress envelope, download |
-| Rail / Air conditioning | honest pending state plus the verified data facts — no unvalidated prediction is shown |
-| Submission | runs every live model over the test inputs, validates, builds and saves `predictions.zip` |
+| Fleet view | the four session verdicts on a live map of the rail network (PS2 station GeoJSON), with the LTA DataMall TrainServiceAlerts feed (user's own AccountKey, session only) and the public SGMRT channel |
+| Rail | classify 1-second recordings, per-side axle-box energy grid, wavelength-domain spectrum from the measured speed, class probabilities, download |
+| Air conditioning | rank all eight cars by cabin-temperature excess over the other cars during cooling, CarRank bars, excess timeline, download |
+| Submission | runs every live model over the test inputs, validates, builds and saves `predictions.zip` (all four subsystems) |
 | Method | architecture diagram, validation table, principles |
 
 ## Demo video path (≤ 3 minutes)
@@ -63,5 +72,11 @@ app/streamlit_app.py  (pages, no modelling code) ◄──────┘
 
 - `.streamlit/config.toml` holds the theme and a 400 MB upload limit. If the
   launcher runs from another directory, pass the same values as `--theme.*` flags.
-- SHM on all 16 test files takes ~20 s (rainflow counting); the page shows a
-  per-file progress bar.
+- SHM on all 16 test files takes ~20 s (rainflow counting) and Rail on all 68
+  takes ~3 min (17 MB each); both pages show a per-file progress bar.
+- Rail and ACV models are ported unchanged from the teammate's
+  `PS3/final_streamlit_app` build; `subsystems/<key>/artifacts/config.json` is
+  the model card, `validation_source.json` the original report.
+- The Fleet page needs `repo/PS2/data/AmendmenttoMP2014RailStation.geojson`
+  for the map. Live feeds are optional and time-limited; the page renders
+  without them.

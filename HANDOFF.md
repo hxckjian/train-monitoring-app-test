@@ -12,11 +12,12 @@ dead token budget, a crashed machine or a fresh chat costs minutes, not hours.
    discipline agents.
 4. The subsystem README you are working on, e.g. `subsystems/door/README.md`.
 
-**Environment:** conda env `nebula-ps3` (isolated; the FYP env `ungt` is
-separate and must not be touched). Run everything as:
+**Environment (this machine, 2026-09-18):** a plain venv at `.venv/`, Python
+3.14, built from `requirements.txt`. The original machine used a conda env
+`nebula-ps3`; either works. Run everything as:
 
 ```bash
-conda run -n nebula-ps3 --no-capture-output python <script>
+.venv/Scripts/python <script>          # Windows
 ```
 
 ---
@@ -24,13 +25,13 @@ conda run -n nebula-ps3 --no-capture-output python <script>
 ## 0. Launch
 
 ```bash
-conda activate nebula-ps3
-streamlit run app/streamlit_app.py      # http://localhost:8501
+.venv/Scripts/python -m streamlit run app/streamlit_app.py   # http://localhost:8501
+.venv/Scripts/python -m scripts.build_predictions            # predictions.zip without the UI
 ```
 
-Adding Rail or ACV: build `subsystems/<key>/` with `predict()` + `analyze()`
-following Door/SHM, then set `package="subsystems.<key>"` in
-`core/registry.py`. The app picks it up.
+All four subsystems are live. A better model for any of them drops in by
+replacing `subsystems/<key>/` (keep `predict()` + `analyze()` and
+`artifacts/config.json`); no page code changes.
 
 ## 1. Status at a glance — 2026-09-18
 
@@ -41,13 +42,31 @@ following Door/SHM, then set `package="subsystems.<key>"` in
 | All four scoring formulas | DONE — `scoring/metrics.py`, 28 tests pass |
 | **Door subsystem** | **DONE** — IoU-weighted F1 0.9909 ± 0.0182, smoke test 15/15 |
 | **SHM** | **DONE** — `subsystems/shm/`, 0.9729 ± 0.0067, smoke test 10/10 |
-| Rail | Not started |
-| ACV | Schema fully profiled; no model yet |
-| **Streamlit app** | **DONE** — `app/`, 7 pages, builds predictions.zip. See `app/README.md` |
+| **Rail** | **DONE** — `subsystems/rail/`, ported from the teammate's `final_streamlit_app`; macro F1 0.8551 ± 0.0502 (5 grouped folds), Side I recall 0.64 |
+| **ACV** | **DONE** — `subsystems/acv/`, ported from the same build; rank decay 0.9792 ± 0.0466 leave-one-case-out (case 04 ranks 2nd) |
+| **Streamlit app** | **DONE** — `app/`, 8 pages incl. Fleet view (live map + LTA/SGMRT feeds), builds predictions.zip for all four. See `app/README.md` |
+| **predictions.zip** | **DONE** — `predictions/predictions.zip`, four CSVs, schema-validated (38 / 16 / 68 / 1 rows) |
 | Design system | Published |
 | Review of teammate's build | DONE — findings in section 6 |
 
 ---
+
+## 1.1 Synthesis of the two builds — 2026-09-18
+
+Two complete builds existed: this workspace (Door + SHM, design system, registry
+app) and the teammate's `PS3/final_streamlit_app` (all four subsystems, joblib
+artifacts, plain upload/run/download app). The best of each was kept:
+
+| Subsystem | Kept | Why |
+|---|---|---|
+| Door | this workspace (0.9909 CV) | the two builds agree on all 38 test boundaries and 37/38 labels; ours carries the richer analyze() |
+| SHM | this workspace (0.9728 CV) | physics fit (m ≈ 5) beats their elastic-net surrogate (0.9522 LOFO) |
+| Rail | teammate's (0.8551 CV) | only validated Rail model; features + artifact copied byte-for-byte, predictions cross-checked identical |
+| ACV | teammate's (0.9792 LOCO) | only validated ACV model; same port and cross-check |
+| App | this workspace | registry + schema validator + design system; Rail/ACV/Fleet pages added |
+
+The one Door disagreement is segment 24 (starts 2023-7-5-0-22-17-683): theirs
+says Abnormal, ours Normal. Left as ours; noted for the write-up.
 
 ## 2. The team situation
 
@@ -314,15 +333,17 @@ forbids that.
 
 ## 7. Next actions, in order
 
-1. **Run the app:** `streamlit run app/streamlit_app.py`. Door and SHM are live;
-   Submission page builds a validated predictions.zip (currently door + shm).
-2. **Rail** — FFT band energies converted to the **wavelength** domain using
-   measured speed, per side, class-weighted, stratified repeated CV grouped by
-   file. This is the lever nobody else is using.
-3. **ACV** — deterministic drift ranking with cooling-mode masking and a name
-   normalisation layer that handles case 04; leave-one-case-out.
-4. **App** — see the open question below.
-5. Regenerate `predictions.zip` **through the app** before submitting.
+1. **Record the ≤3 min demo video** following `app/README.md`; add the Fleet
+   view (20 s) after the Overview.
+2. **Rail headroom:** Side I recall is 0.64. The wavelength-domain features
+   (λ = v/f, shown on the Rail page but not yet in the classifier) are the
+   untried lever if time allows. Validate on the same 5 grouped folds
+   (`subsystems/rail/artifacts/oof.csv` has the fold ids).
+3. **ACV case 04** ranks the true car second; it is the 63-parameter file. Any
+   change must keep leave-one-case-out ≥ 0.979.
+4. Regenerate `predictions.zip` through the app or `scripts.build_predictions`
+   before submitting, and email the organisers the [PS3] question about whether
+   the held-out inputs are the files already in the repo.
 
 ---
 

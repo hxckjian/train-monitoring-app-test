@@ -178,3 +178,98 @@ def shm_envelope(env: pd.DataFrame) -> go.Figure:
     fig.update_xaxes(title="sample index")
     fig.update_yaxes(title="stress")
     return _base(fig, 240, legend=False)
+
+
+# --------------------------------------------------------------------- Rail
+
+RAIL_COLOR = {"Normal": "status-ok", "Side I": "status-alert", "Side II": "status-alert"}
+
+
+def _ramp_scale() -> list:
+    return [[i / 4, T(f"ramp-{i + 1}")] for i in range(5)]
+
+
+def rail_axle_grid(grid: pd.DataFrame) -> go.Figure:
+    """AxleGrid: 8 cars across, positions down, split into the two rails."""
+    fig = make_subplots(rows=1, cols=2, horizontal_spacing=0.06,
+                        subplot_titles=("Side I rail · positions 1, 3, 5, 7",
+                                        "Side II rail · positions 2, 4, 6, 8"))
+    for col, side in ((1, "Side I"), (2, "Side II")):
+        g = grid[grid["side"] == side]
+        pv = g.pivot(index="position", columns="car", values="value").sort_index(ascending=False)
+        rms = g.pivot(index="position", columns="car", values="rms").sort_index(ascending=False)
+        fig.add_trace(go.Heatmap(
+            z=pv.values, x=[f"Car {c}" for c in pv.columns], y=[f"Pos {p}" for p in pv.index],
+            customdata=rms.values, zmin=0, zmax=1, colorscale=_ramp_scale(),
+            xgap=2, ygap=2, showscale=(col == 2),
+            colorbar=dict(title="relative<br>energy", thickness=10, len=0.9,
+                          tickfont=dict(size=10, color=T("ink-muted"))),
+            hovertemplate="%{x} · %{y} · " + side + "<br>vibration RMS %{customdata:.3f} m/s²"
+                          "<br>relative %{z:.2f}<extra></extra>"), 1, col)
+    for a in fig.layout.annotations:
+        a.font = dict(size=12, color=T("ink-secondary"))
+    fig = _base(fig, 300, legend=False)
+    fig.update_layout(margin=dict(l=8, r=8, t=30, b=8))
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(showgrid=False)
+    return fig
+
+
+def rail_spectrum(spec: pd.DataFrame) -> go.Figure:
+    """Mean vibration spectrum per rail, in the wavelength domain (λ = v / f)."""
+    use_wl = "wavelength_cm" in spec.columns
+    x = spec["wavelength_cm"] if use_wl else spec["f_hz"]
+    fig = go.Figure()
+    for side, color in (("Side I", "series-1"), ("Side II", "ink-secondary")):
+        fig.add_trace(go.Scatter(
+            x=x, y=spec[side], mode="lines", name=side,
+            line=dict(color=T(color), width=2),
+            customdata=spec["f_hz"],
+            hovertemplate=(side + "<br>" + ("wavelength %{x:.1f} cm · " if use_wl else "")
+                           + "%{customdata:.0f} Hz<br>power %{y:.3g}<extra></extra>")))
+    if use_wl:
+        fig.add_vrect(x0=3, x1=30, fillcolor=T("status-watch-soft"), opacity=0.5, line_width=0,
+                      annotation_text="typical corrugation pitch 3–30 cm",
+                      annotation_position="top left",
+                      annotation_font=dict(size=11, color=T("ink-secondary")))
+        fig.update_xaxes(type="log", title="wavelength along the rail, cm (speed-normalised)",
+                         autorange="reversed")
+    else:
+        fig.update_xaxes(type="log", title="frequency, Hz (speed unavailable)")
+    fig.update_yaxes(type="log", title="mean vibration power")
+    return _base(fig, 300)
+
+
+def rail_summary(files: pd.DataFrame) -> go.Figure:
+    counts = files["prediction"].value_counts().reindex(["Normal", "Side I", "Side II"]).fillna(0)
+    fig = go.Figure(go.Bar(
+        x=counts.index, y=counts.values,
+        marker=dict(color=[T(RAIL_COLOR[k]) for k in counts.index],
+                    line=dict(color=T("surface-plot"), width=2)),
+        text=[f"{int(v)}" for v in counts.values], textposition="outside", cliponaxis=False,
+        textfont=dict(family="IBM Plex Mono, monospace", size=12, color=T("ink-secondary")),
+        hovertemplate="%{x}: %{y} file(s)<extra></extra>"))
+    fig.update_yaxes(title="files", rangemode="tozero")
+    return _base(fig, 240, legend=False)
+
+
+# ---------------------------------------------------------------------- ACV
+
+def acv_excess(excess: pd.DataFrame, ranking: list[str]) -> go.Figure:
+    """Cabin temperature minus the other cars' median, per car, during cooling."""
+    fig = go.Figure()
+    top = ranking[0]
+    for cid in ranking[::-1]:
+        if cid not in excess.columns:
+            continue
+        is_top = cid == top
+        fig.add_trace(go.Scatter(
+            x=excess["time"], y=excess[cid], mode="lines", name=f"Car {cid}",
+            line=dict(color=T("status-alert") if is_top else T("ink-muted"),
+                      width=2.5 if is_top else 1),
+            opacity=1.0 if is_top else 0.55,
+            hovertemplate=f"Car {cid}<br>%{{x}}<br>%{{y:+.2f}} °C vs peers<extra></extra>"))
+    fig.add_hline(y=0, line=dict(color=T("ink-primary"), width=1, dash="dot"))
+    fig.update_yaxes(title="°C above the other cars")
+    fig.update_xaxes(title="time")
+    return _base(fig, 320)
