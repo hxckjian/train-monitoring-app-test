@@ -48,6 +48,11 @@ def _reload_project_modules(modules) -> bool:
     return True
 
 
+import charts  # noqa: E402
+import components as ui  # noqa: E402
+import insight  # noqa: E402
+import livemap  # noqa: E402
+import schematics  # noqa: E402
 import core.cache as _core_cache  # noqa: E402
 import core.events as _core_events  # noqa: E402
 import core.quickdrop as _core_quickdrop  # noqa: E402
