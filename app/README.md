@@ -51,7 +51,7 @@ app/streamlit_app.py  (pages, no modelling code) ◄──────┘
 
 | Page | What it does |
 |---|---|
-| Dashboard | status strip with session verdicts, Run all, tabs: network map (line paths, zones, halo in the worst verdict colour), top events ranked by severity, trends, zone tiles |
+| Dashboard | dark, map-first: KPI cards, status-overview bar, trend, the network map with line paths, zones, live NEA weather (rain gauges, temperatures), events table with status pills and a Fault/Watch filter; tabs for subsystems, trends, zones and the training data. Opens on the cached run of the competition test data |
 | Door | segment a stream, verdict card, cycle timeline, sustained-current scatter, per-cycle inspector, download |
 | Structural health | damage per file against D = 1, per-file cycle and damage-share profiles, stress envelope, download |
 | Fleet view | the four session verdicts on a live map of the rail network (PS2 station GeoJSON), with the LTA DataMall TrainServiceAlerts feed (user's own AccountKey, session only) and the public SGMRT channel |
@@ -79,6 +79,11 @@ app/streamlit_app.py  (pages, no modelling code) ◄──────┘
 - Rail and ACV models are ported unchanged from the teammate's
   `PS3/final_streamlit_app` build; `subsystems/<key>/artifacts/config.json` is
   the model card, `validation_source.json` the original report.
-- The Fleet page needs `repo/PS2/data/AmendmenttoMP2014RailStation.geojson`
-  for the map. Live feeds are optional and time-limited; the page renders
-  without them.
+- The station map is bundled at `data/stations/`. Live feeds: NEA weather from
+  data.gov.sg needs no key; LTA DataMall TrainServiceAlerts needs the user's own
+  AccountKey (register at datamall.lta.gov.sg), typed into the Fleet page per
+  session; the public SGMRT channel needs no key. All are time-limited and the
+  pages render without them.
+- `predictions/analysis_cache.pkl` (gitignored) is written by
+  `scripts/build_predictions.py` and gives every page results on open. Delete it
+  or press Run all to refresh.
