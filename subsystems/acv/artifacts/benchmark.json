@@ -1,0 +1,81 @@
+{
+  "protocol": "leave-one-case-out over 6 cases; rules have no fitted parameters",
+  "table": [
+    {
+      "variant": "peer_mean (current)",
+      "per_case": [
+        1.0,
+        1.0,
+        1.0,
+        0.875,
+        1.0,
+        1.0
+      ],
+      "mean": 0.9791666666666666
+    },
+    {
+      "variant": "peer_q90",
+      "per_case": [
+        1.0,
+        1.0,
+        1.0,
+        0.875,
+        0.625,
+        1.0
+      ],
+      "mean": 0.9166666666666666
+    },
+    {
+      "variant": "peer_hot_fraction",
+      "per_case": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "mean": 1.0
+    },
+    {
+      "variant": "excess_mean (own setpoint)",
+      "per_case": [
+        1.0,
+        1.0,
+        1.0,
+        0.875,
+        1.0,
+        1.0
+      ],
+      "mean": 0.9791666666666666
+    },
+    {
+      "variant": "excess_peer_mean",
+      "per_case": [
+        1.0,
+        1.0,
+        1.0,
+        0.875,
+        1.0,
+        1.0
+      ],
+      "mean": 0.9791666666666666
+    },
+    {
+      "variant": "z-combined (peer_mean + excess_peer_mean)",
+      "per_case": [
+        1.0,
+        1.0,
+        1.0,
+        0.875,
+        1.0,
+        1.0
+      ],
+      "mean": 0.9791666666666666
+    }
+  ],
+  "decision": {
+    "adopt": true,
+    "reason": "peer_hot_fraction dominates the current rule"
+  }
+}

@@ -386,3 +386,32 @@ def generic_drift(d: pd.DataFrame) -> go.Figure:
     fig = _base(fig, 380, legend=False)
     fig.update_layout(margin=dict(l=8, r=8, t=30, b=8))
     return fig
+
+
+# ----------------------------------------------------------- forecast / importances
+
+def shm_forecast(files: pd.DataFrame) -> go.Figure:
+    d = files.sort_values("segments_to_failure")
+    fig = go.Figure(go.Bar(
+        orientation="h", y=d["file_id"], x=d["segments_to_failure"],
+        marker=dict(color=[ramp_color(1 - min(1.0, v / max(float(d["segments_to_failure"].max()), 1e-9)))
+                           for v in d["segments_to_failure"]],
+                    line=dict(color=T("surface-plot"), width=2)),
+        text=[f"{v:.1f}" for v in d["segments_to_failure"]], textposition="outside", cliponaxis=False,
+        textfont=dict(family="IBM Plex Mono, monospace", size=11, color=T("ink-secondary")),
+        customdata=d["damage"],
+        hovertemplate="%{y}<br>%{x:.1f} more segments at this rate<br>D now %{customdata:.3f}<extra></extra>"))
+    fig.update_xaxes(title="segments of equal length until D = 1 (log)", type="log")
+    fig.update_yaxes(showgrid=False)
+    return _base(fig, max(240, 26 * len(d) + 80), legend=False)
+
+
+def importances(imp: pd.Series, top: int = 12) -> go.Figure:
+    s = imp.sort_values(ascending=False).head(top)[::-1]
+    fig = go.Figure(go.Bar(
+        orientation="h", y=[str(i)[:38] for i in s.index], x=s.values,
+        marker=dict(color=T("series-1"), line=dict(color=T("surface-plot"), width=2)),
+        hovertemplate="%{y}<br>importance %{x:.3f}<extra></extra>"))
+    fig.update_xaxes(title="importance")
+    fig.update_yaxes(showgrid=False, tickfont=dict(size=10))
+    return _base(fig, 26 * len(s) + 60, legend=False)

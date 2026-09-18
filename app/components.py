@@ -76,7 +76,8 @@ def empty(title: str, paragraphs: list[str]) -> str:
     return f'<div class="nw-empty">{chip("unknown", "Model pending")}<h3>{escape(title)}</h3>{body}</div>'
 
 
-def car_rank(cars: list[tuple[str, float | None]], baseline: str | None = None) -> str:
+def car_rank(cars: list[tuple[str, float | None]], baseline: str | None = None,
+             fmt=lambda s: f"{s:+.2f} °C") -> str:
     """CarRank: every car listed best-first; rank 1 wears status-alert, the rest series-1.
     Bars normalise to the top score so a near-tie looks like a near-tie."""
     finite = [s for _, s in cars if s is not None]
@@ -89,7 +90,7 @@ def car_rank(cars: list[tuple[str, float | None]], baseline: str | None = None) 
             w, cls, txt = 0, "na", "no cooling evidence"
         else:
             w = max(6, round(100 * (s - lo) / span)) if hi > lo else 100
-            cls, txt = ("top" if i == 1 else ""), f"{s:+.2f} °C"
+            cls, txt = ("top" if i == 1 else ""), fmt(s)
         rows.append(f'<div class="nw-rank-row {cls}"><span class="r">{i}</span>'
                     f'<span class="id">Car {escape(cid)}</span>'
                     f'<span class="bar"><span style="width:{w}%"></span></span>'

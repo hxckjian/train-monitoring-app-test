@@ -140,7 +140,8 @@ def events(results: dict) -> list[dict]:
     if acv:
         for f in acv["files"]:
             top, second = f["ranking"][0], f["ranking"][1]
-            s1, s2 = f["scores"].get(top), f["scores"].get(second)
+            pm = f.get("peer_mean", f["scores"])
+            s1, s2 = pm.get(top), pm.get(second)
             gap = (s1 - s2) if (s1 is not None and s2 is not None) else 0.0
             ev.append({"severity": 0.45 + min(0.4, 4 * max(gap, 0.0)), "state": "alert" if gap >= 0.03 else "watch",
                        "subsystem": "Air conditioning",

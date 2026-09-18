@@ -87,14 +87,25 @@ def _process(f: Any, artifact: dict, evidence: bool) -> dict:
         x = feats.loc[:, artifact["feature_names"]].copy()
         x.attrs["unobserved"] = feats.attrs.get("unobserved", [])
         scores = rank_scores(x, artifact.get("model"))
+        if artifact.get("rule") == "hot_fraction_then_peer_mean":
+            # acv-v2: rank by the fraction of cooling time a car runs > 2 degC hotter than
+            # the other cars (leak episodes), ties broken by the mean excess (the v1 rule).
+            hot = feats["peer_hot_fraction"].to_numpy(dtype=float).copy()
+            hot[~np.isfinite(scores)] = -np.inf
+            order = np.lexsort((-scores, -hot))
+            scores = hot + np.where(np.isfinite(scores), scores * 1e-6, 0.0)
+        else:
+            order = np.argsort(-scores, kind="stable")
     except ValueError as exc:
         raise ValueError(f"{name}: {exc}") from exc
-    order = np.argsort(-scores, kind="stable")
     ranked = [cars[i] for i in order]
     out = {"file_id": name, "ranked_cars": "|".join(ranked), "ranking": ranked,
            "scores": {cars[i]: (None if not np.isfinite(scores[i]) else float(scores[i]))
                       for i in range(len(cars))},
-           "unobserved": list(x.attrs["unobserved"])}
+           "unobserved": list(x.attrs["unobserved"]),
+           "peer_mean": {c: float(v) for c, v in feats["peer_mean"].items()},
+           "hot_fraction": {c: float(v) for c, v in feats["peer_hot_fraction"].items()},
+           "rule": artifact.get("rule", "peer_mean")}
     if evidence:
         temps, targets = _cooling_temperatures(frame, cars)
         times = pd.to_datetime(frame["Time"], errors="coerce")

@@ -1,0 +1,10 @@
+repo/
+.venv/
+venv/
+artifacts_cache/
+dist/
+.git/
+.pytest_cache/
+__pycache__/
+*.pyc
+scratch/

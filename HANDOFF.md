@@ -86,6 +86,21 @@ against the same numbers.
 
 ---
 
+## 2.1 Spec compliance — checked against the PS3 spec and all four Info Kits (2026-09-19)
+
+| Requirement | Source | Where it is met |
+|---|---|---|
+| One app, every attempted subsystem, non-technical user, upload → result → download | spec §4.1 item 3 | `app/` |
+| `predictions.zip`, CSVs at top level, produced through the app | spec §4.1 item 2 | Submission page; `scripts/build_predictions.py` |
+| Door: no `file_id`; `start_time,end_time,prediction`; native timestamp format | Door Info Kit §3 | `core/submission.py` validator |
+| ACV: `file_id,ranked_cars`, two-digit ids from the file's headers, every car | ACV Info Kit §3 | validator + `subsystems/acv` |
+| Rail: `Normal`/`Side I`/`Side II`; SHM: numeric damage | Info Kits §3 | validator |
+| `predict.py --input/--output` CLI | every Info Kit §5 | `predict.py` at project root |
+| Team folder layout incl. `Optional_Items/<Door|ACV|Rail Corrugation|SHM>/{code,model}` | spec §4 | `scripts/package_submission.py --team NAME` |
+| Demo video ≤ 3 min | spec §4.1 item 1 | **to record** (path in `app/README.md`) |
+| Leakage-safe split, assumptions stated, spread reported | spec §3.2 | Validation page, `PROJECT-STATE.md` |
+| Model comparison, benchmarking, forecasting, explainability | spec §6.1 | `scripts/model_search.py` → Validation page; SHM remaining-life forecast; feature importances |
+
 ## 3. Rebuild from nothing
 
 ```bash

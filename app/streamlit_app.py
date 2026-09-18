@@ -418,8 +418,14 @@ def shm_page() -> None:
     st.caption(f"Watch ({SHM_WATCH}) and alert ({SHM_ALERT}) bands are illustrative planning "
                "thresholds for an operator to set. The model predicts D; it does not choose them.")
 
+    files["segments_to_failure"] = (1.0 - files["damage"]) / files["damage"]
     html(ui.section("Damage by file"))
     plot(charts.shm_damage(files))
+    html(ui.section("Forecast · segments of this length left before D = 1"))
+    st.caption("Miner's rule is linear: if a measurement point keeps accruing damage at the rate seen "
+               "in its file, it reaches D = 1 after (1 − D) / D more segments of the same length. "
+               "A forecast of the loading pattern continuing, not a prediction of failure.")
+    plot(charts.shm_forecast(files))
 
     html(ui.section("Inspect a file"))
     ids = list(files["file_id"])
@@ -445,9 +451,10 @@ def shm_page() -> None:
         plot(charts.shm_envelope(f["envelope"]))
 
     html(ui.section("Predictions"))
-    st.dataframe(files[["file_id", "damage", "n_cycles", "top_share"]],
+    st.dataframe(files[["file_id", "damage", "segments_to_failure", "n_cycles", "top_share"]],
                  hide_index=True, width="stretch",
                  column_config={
+                     "segments_to_failure": st.column_config.NumberColumn("Segments to D = 1", format="%.1f"),
                      "damage": st.column_config.ProgressColumn("Damage D", min_value=0.0,
                                                                max_value=1.0, format="%.4f"),
                      "n_cycles": st.column_config.NumberColumn("Cycles", format="%,.0f"),
@@ -577,24 +584,34 @@ def acv_page() -> None:
     pick = ids[0] if len(ids) == 1 else st.selectbox("Case", ids)
     f = next(x for x in res["files"] if x["file_id"] == pick)
     top, second = f["ranking"][0], f["ranking"][1]
-    s_top, s_2 = f["scores"][top], f["scores"][second]
+    pm, hf = f.get("peer_mean", f["scores"]), f.get("hot_fraction", {})
+    s_top, s_2 = pm.get(top), pm.get(second)
     gap = (s_top - s_2) if (s_top is not None and s_2 is not None) else None
-    cars = [(c, f["scores"][c]) for c in f["ranking"]]
+    h_top, h_2 = hf.get(top, 0.0), hf.get(second, 0.0)
+    v2 = f.get("rule") == "hot_fraction_then_peer_mean"
+    cars = [(c, (hf.get(c) if v2 else pm.get(c)) if c not in f["unobserved"] else None) for c in f["ranking"]]
 
     html(ui.kpis([
         ("Cases ranked", f"{len(ids)}", None),
-        ("Most likely faulty", f"Car {top}", f"{s_top:+.2f} °C above the other cars" if s_top is not None else None),
-        ("Margin to runner-up", f"{gap:.2f} °C" if gap is not None else "—", f"runner-up Car {second}"),
+        ("Most likely faulty", f"Car {top}", (f"hot {h_top:.1%} of cooling time · {s_top:+.2f} °C mean" if v2
+                                              else f"{s_top:+.2f} °C above the other cars") if s_top is not None else None),
+        ("Margin to runner-up", (f"{(h_top - h_2):.1%} of time" if v2 else f"{gap:.2f} °C") if gap is not None else "—",
+         f"runner-up Car {second}" + (f" · {gap:+.2f} °C mean gap" if v2 and gap is not None else "")),
         ("Cooling readings used", f"{max(f['cooling_readings'].values()):,}", f"of {f['n_readings']:,} rows"),
     ]))
     st.write("")
-    state = "alert" if (gap is not None and gap >= 0.03) else "watch"
+    state = "alert" if (gap is not None and gap >= 0.03) or (v2 and h_top - h_2 >= 0.01) else "watch"
     html(ui.verdict(
         state, "Air conditioning",
         f"Car {top} is the most likely refrigerant leak in {pick}",
-        f"During cooling, Car {top}'s cabin ran {s_top:+.2f} °C against the median of the other "
-        f"seven cars on the same train at the same moment. Comparing cars to each other cancels "
-        f"the weather, the passenger load and the route, which all eight cars share."
+        (f"During cooling, Car {top} ran more than 2 °C hotter than the median of the other seven cars "
+         f"for {h_top:.1%} of the time (runner-up {h_2:.1%}), and {s_top:+.2f} °C hotter on average. "
+         f"A car that has lost refrigerant cannot hold its cabin down when the load rises, so it shows "
+         f"hot episodes the other cars do not. Comparing cars to each other cancels the weather, the "
+         f"passenger load and the route, which all eight cars share." if v2 else
+         f"During cooling, Car {top}'s cabin ran {s_top:+.2f} °C against the median of the other "
+         f"seven cars on the same train at the same moment. Comparing cars to each other cancels "
+         f"the weather, the passenger load and the route, which all eight cars share.")
         + (" The margin over the runner-up is narrow, so treat the top two as candidates."
            if state == "watch" else ""),
         f"Check refrigerant pressure and the condenser on Car {top} first"
@@ -607,8 +624,10 @@ def acv_page() -> None:
     left, right = st.columns([1, 1.4], gap="medium")
     with left:
         html(ui.section("All eight cars, ranked"))
-        html(ui.car_rank(cars, "Every car is listed: the scoring gives partial credit for a close "
-                               "miss and none for an omitted car. A random ordering scores 0.5625."))
+        html(ui.car_rank(cars, ("Bars: share of cooling time more than 2 °C above the other cars. " if v2 else "")
+                         + "Every car is listed: the scoring gives partial credit for a close "
+                           "miss and none for an omitted car. A random ordering scores 0.5625.",
+                         fmt=(lambda s: f"{s:.2%} hot") if v2 else (lambda s: f"{s:+.2f} °C")))
     with right:
         html(ui.section("Temperature excess over the other cars"))
         plot(charts.acv_excess(f["excess_timeline"], f["ranking"]))
@@ -804,9 +823,55 @@ def validation_page() -> None:
                           ("Naive baseline", f"{base:.3f}" if base is not None else "—", None)]))
             st.markdown(f"**Split.** {v['split']}")
             st.caption(note)
+    import json as _json
+    html(ui.section("Model comparison · pre-registered search"))
+    st.caption("Every candidate scored under the same leakage-safe protocol; the decision rule was written "
+               "before the run (scripts/model_search.py). A candidate that does not clear the rule is "
+               "reported and not adopted.")
+    for key, name in (("rail", "Rail corrugation"), ("door", "Door"), ("acv", "Air conditioning")):
+        bp = PROJECT_ROOT / "subsystems" / key / "artifacts" / "benchmark.json"
+        if not bp.exists():
+            continue
+        b = _json.loads(bp.read_text(encoding="utf-8"))
+        d = b["decision"]
+        html(ui.chip("ok" if d["adopt"] else "watch", f"{name}: " + ("new model adopted" if d["adopt"] else "incumbent kept"), d["reason"]))
+        t = pd.DataFrame(b["table"])
+        if key == "rail":
+            t = t[["candidate", "features", "mean", "std", "repeats"]].rename(columns={"mean": "repeated CV macro F1", "std": "sd"})
+            n = b["nested"]
+            st.markdown(f"Nested estimate of the whole search: **{n['macro_f1_pooled']:.4f}** pooled, "
+                        f"{n['mean']:.4f} ± {n['std']:.4f} across the 5 outer folds. The candidate chosen inside each "
+                        f"outer fold: {', '.join(c['chosen'] + '/' + c['features'] for c in n['chosen_per_fold'])}.")
+        elif key == "door":
+            t = t.rename(columns={"mean": "IoU-weighted F1", "std": "sd"})
+        else:
+            t = t.rename(columns={"mean": "rank decay", "per_case": "per case"})
+        st.dataframe(t.head(12), hide_index=True, width="stretch")
+
+    html(ui.section("What the classifiers rely on"))
+    a, b = st.columns(2, gap="medium")
+    for col, key, name in ((a, "door", "Door"), (b, "rail", "Rail corrugation")):
+        spec = SUBSYSTEMS[key]
+        if not spec.available:
+            continue
+        try:
+            art = spec.module.load_saved_model()[0]
+            model = art["model"] if isinstance(art, dict) else art
+            names = art.get("feature_names") if isinstance(art, dict) else spec.model_card().get("feature_columns")
+            imp = getattr(model, "feature_importances_", None)
+        except Exception:
+            imp = None
+        with col:
+            st.markdown(f"**{name}**")
+            if imp is None or names is None:
+                st.caption("No importances for this model type.")
+            else:
+                plot(charts.importances(pd.Series(imp, index=names)))
+    st.caption("Impurity-based importances from the random forest: which features the trees split on most. "
+               "Door leans on sustained current and current per unit back-EMF, the resistance signal itself.")
+
     exp = PROJECT_ROOT / "subsystems" / "rail" / "artifacts" / "experiment_wavelength.json"
     if exp.exists():
-        import json as _json
         r = _json.loads(exp.read_text(encoding="utf-8"))
         html(ui.section("Rail refinement · pre-registered experiment"))
         d = r["decision"]
@@ -1004,6 +1069,17 @@ digraph G {
                          "Split": "—", "Score": "pending"})
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 
+    html(ui.section("Deliverables checklist · spec Section 4"))
+    st.markdown("""
+| Item | Where | Status |
+|---|---|---|
+| App covering every attempted subsystem, usable by a non-technical person | this console | done |
+| `predictions.zip`, `*_predictions.csv` at the top level, generated through the app | Submission page, or `python -m scripts.build_predictions` | done, schema-validated |
+| Demo video ≤ 3 min | record with the app; path in `app/README.md` | to record |
+| `predict.py --input/--output` CLI (each Info Kit, Section 5) | `predict.py` at the project root, same inference path as the app | done |
+| Team folder: `demo_video`, `predictions.zip`, `app/`, `Optional_Items/{write_up, Door, ACV, Rail Corrugation, SHM}/{code,model}` | `python -m scripts.package_submission --team "<name>"` | done |
+| Leakage-safe split, stated assumptions, reported spread | Validation page, `PROJECT-STATE.md` | done |
+""")
     html(ui.section("Design method"))
     st.markdown("""
 The interface follows three rules borrowed from the products operators already use and from Apple's

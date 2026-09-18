@@ -1,0 +1,57 @@
+{
+  "protocol": "5 contiguous time blocks, whole pipeline scored with IoU-weighted F1",
+  "table": [
+    {
+      "candidate": "rf_current",
+      "folds": [
+        0.9545,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "mean": 0.990909090909091,
+      "std": 0.018181818181818167
+    },
+    {
+      "candidate": "extra_trees",
+      "folds": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "mean": 1.0,
+      "std": 0.0
+    },
+    {
+      "candidate": "hgb",
+      "folds": [
+        0.9545,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "mean": 0.990909090909091,
+      "std": 0.018181818181818167
+    },
+    {
+      "candidate": "logreg_scaled",
+      "folds": [
+        0.9545,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "mean": 0.990909090909091,
+      "std": 0.018181818181818167
+    }
+  ],
+  "decision": {
+    "adopt": false,
+    "reason": "no candidate beats the incumbent by 0.01 on every fold; incumbent kept"
+  }
+}
