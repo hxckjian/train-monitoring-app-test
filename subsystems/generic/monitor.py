@@ -31,9 +31,22 @@ def load_table(uploaded: Any) -> pd.DataFrame:
     if name.endswith(".xlsx"):
         return pd.read_excel(io.BytesIO(raw))
     try:
-        return pd.read_csv(io.BytesIO(raw))
+        df = pd.read_csv(io.BytesIO(raw))
     except Exception:
         return pd.read_csv(io.BytesIO(raw), header=None)
+    # a header made of numbers means there was no header (e.g. the SHM stress files)
+    if len(df.columns) and all(_is_number(c) for c in df.columns):
+        df = pd.read_csv(io.BytesIO(raw), header=None)
+        df.columns = [f"series_{i + 1}" for i in range(df.shape[1])]
+    return df
+
+
+def _is_number(x) -> bool:
+    try:
+        float(str(x))
+        return True
+    except ValueError:
+        return False
 
 
 def guess_time_column(df: pd.DataFrame) -> str | None:
@@ -41,7 +54,11 @@ def guess_time_column(df: pd.DataFrame) -> str | None:
         if str(c).lower() in ("time", "datetime", "timestamp", "date"):
             return c
     for c in df.columns[:3]:
-        parsed = pd.to_datetime(df[c], errors="coerce")
+        if pd.api.types.is_datetime64_any_dtype(df[c]):
+            return c
+        if pd.api.types.is_numeric_dtype(df[c]):
+            continue  # numbers are readings, never timestamps, however pandas would parse them
+        parsed = pd.to_datetime(df[c].astype(str), errors="coerce", format="mixed")
         if parsed.notna().mean() > 0.9:
             return c
     return None

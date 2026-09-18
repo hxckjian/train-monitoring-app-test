@@ -1136,6 +1136,10 @@ def custom_page() -> None:
     num = monitor.numeric_columns(df, exclude=tcol)
     html(ui.kpis([("Rows", f"{len(df):,}", None), ("Columns", f"{df.shape[1]}", f"{len(num)} numeric"),
                   ("Time column", tcol or "none found", None)]))
+    if not num:
+        st.warning("No numeric measurement columns were found in this file. Check it is a sensor export "
+                   "with one reading per row.")
+        return
     method = st.segmented_control("Method", ["Peer comparison across units", "Drift in one series"],
                                   default="Peer comparison across units", key="generic_method")
     if method == "Peer comparison across units":
