@@ -53,10 +53,11 @@ def kpis(items: list[tuple[str, str, str | None]]) -> str:
 
 
 def system_tile(color: str, state: str, state_label: str, name: str, question: str,
-                score: str, metric: str, split: str) -> str:
+                score: str, metric: str, split: str, emoji: str = "") -> str:
+    e = f'<span class="nw-emoji">{emoji}</span>' if emoji else ""
     return f"""<div class="nw-sys"><div class="bar" style="background:{color}"></div>
   {chip(state, state_label)}
-  <div class="name">{escape(name)}</div>
+  <div class="name">{e}{escape(name)}</div>
   <p class="q">{escape(question)}</p>
   <div class="score">{escape(score)}</div>
   <div class="metric">{escape(metric)}</div>
@@ -74,6 +75,13 @@ def steps(items: list[tuple[str, str]]) -> str:
 def empty(title: str, paragraphs: list[str]) -> str:
     body = "".join(f"<p>{escape(p)}</p>" for p in paragraphs)
     return f'<div class="nw-empty">{chip("unknown", "Model pending")}<h3>{escape(title)}</h3>{body}</div>'
+
+
+def hero(kicker: str, title: str, sub: str, emoji: str, big: str, lines: list[str]) -> str:
+    right = "".join(f"<div>{escape(x)}</div>" for x in lines)
+    return (f'<div class="nw-hero-card"><div><div class="k">{escape(kicker)}</div><div class="t">{escape(title)}</div>'
+            f'<div class="s">{escape(sub)}</div></div>'
+            f'<div class="wx"><span class="e">{emoji}</span><div class="big">{escape(big)}</div>{right}</div></div>')
 
 
 def car_rank(cars: list[tuple[str, float | None]], baseline: str | None = None,

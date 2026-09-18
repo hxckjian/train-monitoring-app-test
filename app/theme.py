@@ -224,6 +224,27 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 .nw-skeleton {{ background: linear-gradient(90deg, var(--surface-sunken) 25%, var(--surface-card) 50%, var(--surface-sunken) 75%); background-size:200% 100%; animation: nw-sweep 1.4s linear infinite; border-radius:var(--radius-md); }}
 @media (prefers-reduced-motion: reduce) {{ .nw-card, .nw-panel, .nw-kpi, .nw-sys, .nw-fleet, .nw-rank, .nw-empty, .nw-step, .nw-chip, .nw-pill i, .nw-pill, .nw-beacon i, .nw-live i, .nw-kpi.warn .v, .nw-rank-row .bar span, .nw-health span, .nw-stack span {{ animation:none !important; }} }}
 
+/* ---- hero + glass ---- */
+@keyframes nw-float {{ 0%,100% {{ transform:translateY(0); }} 50% {{ transform:translateY(-4px); }} }}
+.nw-hero-card {{ position:relative; overflow:hidden; border-radius:22px; padding:22px 26px; margin:0 0 14px;
+  background: linear-gradient(135deg, rgba(46,143,212,.16), rgba(22,29,38,.7) 45%, rgba(224,67,79,.10));
+  border:1px solid var(--line-hairline); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  animation: nw-rise .5s both; display:grid; grid-template-columns: 1fr auto; gap:18px; align-items:center; }}
+.nw-hero-card::before {{ content:""; position:absolute; inset:-40% -20% auto auto; width:420px; height:420px; border-radius:50%;
+  background: radial-gradient(closest-side, rgba(46,143,212,.28), transparent); pointer-events:none; }}
+.nw-hero-card .k {{ font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-muted); font-weight:600; }}
+.nw-hero-card .t {{ font-size:34px; line-height:38px; font-weight:600; letter-spacing:-.02em; margin:4px 0 6px; }}
+.nw-hero-card .s {{ font-size:15px; color:var(--ink-secondary); max-width:720px; }}
+.nw-hero-card .wx {{ text-align:right; font-family:var(--font-mono); font-size:13px; color:var(--ink-secondary); line-height:1.5; }}
+.nw-hero-card .wx .e {{ display:inline-block; font-size:44px; line-height:1; animation: nw-float 3.2s ease-in-out infinite; filter: drop-shadow(0 6px 14px rgba(0,0,0,.35)); }}
+.nw-hero-card .wx .big {{ font-size:26px; color:var(--ink-primary); font-weight:500; }}
+.nw-panel, .nw-kpi, .nw-card, .nw-sys, .nw-fleet, .nw-rank {{ background: color-mix(in srgb, var(--surface-card) 82%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }}
+.nw-emoji {{ display:inline-block; margin-right:6px; animation: nw-float 3.6s ease-in-out infinite; }}
+.nw-drop {{ border:1px dashed var(--line-control); border-radius:var(--radius-lg); padding:10px 14px; font-size:13px; color:var(--ink-secondary); }}
+.nw-drop b {{ color:var(--ink-primary); }}
+[data-testid="stFileUploaderDropzone"] {{ min-height:64px; }}
+
 /* ---- streamlit widget polish ---- */
 .stButton > button, .stDownloadButton > button {{ border-radius: var(--radius-md); font-weight: 600;
   border: 1px solid var(--line-control); }}

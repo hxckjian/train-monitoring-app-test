@@ -31,6 +31,7 @@ import livemap  # noqa: E402
 from subsystems.generic import monitor  # noqa: E402
 from core import cache as result_cache  # noqa: E402
 from core import events as event_log  # noqa: E402
+from core import quickdrop  # noqa: E402
 from core.registry import DATA_ROOT, SUBSYSTEMS, SubsystemSpec  # noqa: E402
 from core.submission import SCHEMAS, build_predictions_zip, validate_submission  # noqa: E402
 from theme import T, css  # noqa: E402
@@ -199,18 +200,56 @@ def overview_page() -> None:
     worst = max(states.values(), key=lambda x: rank[x])
     live = [sp for sp in SUBSYSTEMS.values() if sp.available and sp.test_inputs()]
 
-    h1, h2 = st.columns([3, 1.2])
-    with h1:
-        html(ui.header("Train condition monitoring", "Fleet condition",
-                       "Door, structural health, rail corrugation and air conditioning on one screen, "
-                       "with the network they run on and the live conditions around it."))
-    with h2:
+    # ---- hero: one line of truth, the live weather, the clock
+    weather = livemap.fetch_weather()
+    wx_lines, wx_emoji, wx_big = [], "🌤️", "—"
+    if weather.get("ok"):
+        w = livemap.weather_near(weather, 1.30, 103.85)
+        wx_emoji = livemap.weather_emoji(w.get("forecast"), w.get("rain_mm"))
+        wx_big = f"{w.get('temp_c', float('nan')):.1f} °C"
+        wx_lines = [f"{w.get('forecast', '')}", f"rain {w.get('rain_mm', 0):.1f} mm · {weather.get('reading_time', '')} SGT"]
+    n_open_headline = sum(1 for e in ev if e["state"] == "alert")
+    headline = {"alert": f"{n_open_headline} fault(s) need attention", "watch": "Nothing failing, some things to watch",
+                "ok": "Fleet is healthy", "unknown": "Drop a file to begin"}[worst]
+    html(ui.hero("Nebula Wayside · " + event_log.now().strftime("%a %d %b · %H:%M SGT"), headline,
+                 "Door, structural health, rail corrugation and air conditioning on one screen, with the "
+                 "network they run on and the live conditions around it.", wx_emoji, wx_big, wx_lines))
+
+    # ---- quick drop: any competition-format file, routed by its own layout
+    q1, q2 = st.columns([2.2, 1], gap="medium")
+    with q1:
+        drops = st.file_uploader("Drop any file here: the console works out which subsystem it is",
+                                 type=["csv", "xlsx"], accept_multiple_files=True, key="quick_drop")
+        if drops:
+            routed = {}
+            for u in drops:
+                key, why = quickdrop.detect(u.name, u.getvalue())
+                routed.setdefault(key, []).append((u.name, u.getvalue(), why))
+            html(" ".join(ui.chip("ok" if k != "generic" else "watch",
+                                  f"{quickdrop.SUBSYSTEM_EMOJI[k]} {len(v)} → {SUBSYSTEMS[k].name if k in SUBSYSTEMS else 'New data'}",
+                                  v[0][2]) for k, v in routed.items()))
+            if st.button("Analyse everything dropped", type="primary", key="quick_run"):
+                bar = st.progress(0.0, text="Starting...")
+                items = [(k, v) for k, v in routed.items() if k in SUBSYSTEMS]
+                for i, (k, v) in enumerate(items):
+                    bar.progress(i / max(1, len(items)), text=f"{SUBSYSTEMS[k].name}: {len(v)} file(s)")
+                    try:
+                        res = SUBSYSTEMS[k].module.analyze(as_files([(n, d) for n, d, _ in v]))
+                        st.session_state[f"{k}_result"] = res
+                        event_log.append(event_log.events_from_result(k, res, {"source": "run"}))
+                    except (ValueError, FileNotFoundError) as exc:
+                        st.error(f"{SUBSYSTEMS[k].name}: {exc}")
+                bar.empty()
+                if "generic" in routed:
+                    st.info("Unrecognised file(s) go to New data → Screen a dataset.")
+                st.rerun()
+    with q2:
         st.write("")
-        if live and st.button(f"Run all {len(live)} on the provided test data", type="primary", width="stretch"):
+        if live and st.button(f"Run all {len(live)} on the provided test data", width="stretch"):
             run_all(live)
             st.rerun()
         if st.session_state.get("_from_cache"):
-            st.caption("Showing the cached run over the competition test data. Each subsystem page also accepts uploads.")
+            st.caption("Cached run of the competition test data is loaded; every page accepts uploads.")
 
     # ---- counts for the KPI cards and the status bar
     n_assets = sum(len(r["files"]) if r and "files" in r else (len(r["cycles"]) if r else 0) for r in results.values())
@@ -312,7 +351,7 @@ def overview_page() -> None:
             with c1:
                 html(f'<div class="nw-panel" style="padding:12px 16px;margin-bottom:6px">'
                      f'<div class="h" style="display:flex;gap:10px;align-items:center">{ui.pill(x.state, ui.STATES[x.state][1])}'
-                     f'<b>{x.title}</b><span class="mono" style="margin-left:auto;font-size:11px;color:var(--ink-muted)">'
+                     f'<b>{quickdrop.SUBSYSTEM_EMOJI.get(x.subsystem, "")} {x.title}</b><span class="mono" style="margin-left:auto;font-size:11px;color:var(--ink-muted)">'
                      f'{event_log.fmt_time(x.time)}</span></div>'
                      f'<div class="muted" style="font-size:12px;margin-top:4px">{x.subsystem_name} · {event_log.txt(x.train, "train not known")} · '
                      f'{event_log.txt(x.station, "location not known").title()} · {event_log.txt(x.detail, "")}'
@@ -349,7 +388,8 @@ def overview_page() -> None:
             with col:
                 html(ui.system_tile(T(IDENTITY[spec.key]), state, word, spec.name, spec.question,
                                     f"{mean:.3f} ± {std:.3f}" if card else "—",
-                                    f"{METRIC_SHORT[spec.key]}, cross-validated" if card else "not validated", spec.method))
+                                    f"{METRIC_SHORT[spec.key]}, cross-validated" if card else "not validated", spec.method,
+                                    quickdrop.SUBSYSTEM_EMOJI[spec.key]))
         if any(results.values()):
             g1, g2, g3, g4 = st.columns(4, gap="small")
             with g1:
@@ -790,7 +830,7 @@ LINE_NAMES = {"NSL": "North–South (NSL)", "EWL": "East–West (EWL)", "NEL": "
               "CCL": "Circle (CCL)", "DTL": "Downtown (DTL)", "TEL": "Thomson–East Coast (TEL)"}
 
 
-RANGES = {"Today": 1, "7 days": 7, "30 days": 30, "All": None, "Custom": "custom"}
+RANGES = {"Today": 1, "7 days": 7, "30 days": 30, "90 days": 90, "1 year": 365, "All": None, "Custom": "custom"}
 
 
 def fleet_page() -> None:
@@ -914,7 +954,7 @@ def fleet_page() -> None:
     if len(ev):
         show = ev.head(200).copy()
         rows = "".join(
-            f'<tr><td class="mono">{event_log.fmt_time(x.time)}</td><td>{x.subsystem_name}</td>'
+            f'<tr><td class="mono">{event_log.fmt_time(x.time)}</td><td>{quickdrop.SUBSYSTEM_EMOJI.get(x.subsystem, "")} {x.subsystem_name}</td>'
             f'<td>{x.title}</td><td class="muted">{event_log.txt(x.detail, "")}</td><td class="muted">{event_log.txt(x.train)} · {event_log.txt(x.station).title()}</td>'
             f'<td>{ui.pill(x.state, ui.STATES[x.state][1])}</td></tr>'
             for x in show.head(25).itertuples())
@@ -933,7 +973,7 @@ def fleet_page() -> None:
     if weather.get("ok") and not df.empty:
         focus = df[df["key"].isin(livemap.LINES[lines[0]][1])] if lines else df
         w = livemap.weather_near(weather, float(focus["lat"].mean()), float(focus["lon"].mean()))
-        html(ui.kpis([("Air temperature", f"{w.get('temp_c', float('nan')):.1f} °C", f"{w.get('station', '?')} · reading {weather.get('reading_time')} SGT"),
+        html(ui.kpis([("Air temperature", f"{livemap.weather_emoji(w.get('forecast'), w.get('rain_mm'))} {w.get('temp_c', float('nan')):.1f} °C", f"{w.get('station', '?')} · reading {weather.get('reading_time')} SGT"),
                       ("Rainfall, last 5 min", f"{w.get('rain_mm', 0):.1f} mm", "heavy rain slows the network and loads the doors"),
                       ("2-hour forecast", f"{w.get('forecast', '—')}", f"{w.get('area', '')} · NEA via data.gov.sg"),
                       ("Heat load on air-con", "high" if (w.get('temp_c') or 0) >= 31 else "normal", "leaks show first on hot afternoons")]))

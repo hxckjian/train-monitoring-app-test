@@ -241,6 +241,28 @@ def fetch_weather() -> dict:
                 "stations": pd.DataFrame(), "forecast": pd.DataFrame()}
 
 
+def weather_emoji(forecast: str | None, rain_mm: float | None = None) -> str:
+    """NEA forecast wording -> one glyph; rain in the last 5 minutes overrides."""
+    f = (forecast or "").lower()
+    if rain_mm and rain_mm > 0:
+        return "🌧️"
+    if "thunder" in f:
+        return "⛈️"
+    if "shower" in f or "rain" in f:
+        return "🌦️" if "light" in f or "passing" in f else "🌧️"
+    if "haz" in f or "mist" in f or "fog" in f:
+        return "🌫️"
+    if "windy" in f:
+        return "💨"
+    if "partly" in f:
+        return "🌙" if "night" in f else "⛅"
+    if "cloudy" in f:
+        return "☁️"
+    if "fair" in f or "sunny" in f:
+        return "🌙" if "night" in f else "☀️"
+    return "🌤️"
+
+
 def weather_near(weather: dict, lat: float, lon: float) -> dict:
     """Nearest temperature / rain station and forecast area to a point."""
     out = {}

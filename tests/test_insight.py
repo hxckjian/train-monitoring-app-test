@@ -61,3 +61,12 @@ def test_generic_peer_ranking_finds_the_hot_unit():
     state, title, _ = monitor.verdict_for_ranking(rank, "Unit")
     assert state == "alert" and "Unit u3 " in title
     assert monitor.short_names(["Car 01 - T", "Car 02 - T"]) == {"Car 01 - T": "01", "Car 02 - T": "02"}
+
+
+def test_quickdrop_routes_every_competition_format():
+    from core import quickdrop
+    assert quickdrop.detect("case.xlsx", b"PK")[0] == "acv"
+    assert quickdrop.detect("Test.csv", b"Datetime,Motor current(mA),x\n2023-7-5-0-0-0-0,1,2\n")[0] == "door"
+    assert quickdrop.detect("Test1.csv", b"Rotating speed,Vibration of bearing in position 1 of car 1\n0,0.1\n")[0] == "rail"
+    assert quickdrop.detect("test01.csv", b"0.5203\n0.51\n")[0] == "shm"
+    assert quickdrop.detect("other.csv", b"a,b\n1,2\n")[0] == "generic"
