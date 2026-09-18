@@ -20,9 +20,33 @@ for p in (str(PROJECT_ROOT), str(APP_DIR)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import importlib  # noqa: E402
+import os  # noqa: E402
+
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import streamlit as st  # noqa: E402
+
+
+def _fresh(module):
+    """Reload a project module if its file changed since it was imported.
+
+    Hosted Streamlit re-runs this script when a deploy lands but keeps already
+    imported modules, so a new script can meet an old module and fail with an
+    AttributeError. Comparing the file's mtime with the one seen at import closes
+    that gap without a restart."""
+    try:
+        path = module.__file__
+        mtime = os.path.getmtime(path)
+        seen = getattr(module, "__loaded_mtime__", None)
+        if seen is None:
+            module.__loaded_mtime__ = mtime
+        elif mtime > seen:
+            module = importlib.reload(module)
+            module.__loaded_mtime__ = mtime
+    except Exception:
+        pass
+    return module
 
 import charts  # noqa: E402
 import components as ui  # noqa: E402
@@ -36,6 +60,21 @@ from core import quickdrop  # noqa: E402
 from core.registry import DATA_ROOT, SUBSYSTEMS, SubsystemSpec  # noqa: E402
 from core.submission import SCHEMAS, build_predictions_zip, validate_submission  # noqa: E402
 from theme import T, css  # noqa: E402
+
+import core.cache as _core_cache  # noqa: E402
+import core.events as _core_events  # noqa: E402
+import core.quickdrop as _core_quickdrop  # noqa: E402
+import core.registry as _core_registry  # noqa: E402
+import core.submission as _core_submission  # noqa: E402
+import subsystems.generic.monitor as _generic_monitor  # noqa: E402
+
+for _m in (_core_events, _core_cache, _core_quickdrop, _core_registry, _core_submission, _generic_monitor,
+           charts, ui, livemap, insight, schematics):
+    _fresh(_m)
+# rebind the names this script uses, in case a module object was replaced
+result_cache, event_log, quickdrop, monitor = _core_cache, _core_events, _core_quickdrop, _generic_monitor
+from core.registry import DATA_ROOT, SUBSYSTEMS, SubsystemSpec  # noqa: E402,F811
+from core.submission import SCHEMAS, build_predictions_zip, validate_submission  # noqa: E402,F811
 
 st.set_page_config(page_title="Nebula Wayside", page_icon="🚆", layout="wide")
 st.markdown(css(), unsafe_allow_html=True)
