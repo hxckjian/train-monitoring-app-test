@@ -141,14 +141,27 @@ def _persist(widget_key: str, store_key: str) -> None:
 def lta_key_field(label_visible: bool = True) -> str:
     """The DataMall AccountKey, kept in a plain session key so every page can use it.
     Streamlit applies a text input when you press Enter or click away."""
-    st.text_input("LTA DataMall AccountKey", type="password", key="lta_key_widget",
-                  value=st.session_state.get("lta_key_persist", ""),
-                  placeholder="paste the key, then press Enter",
-                  on_change=_persist, args=("lta_key_widget", "lta_key_persist"),
-                  label_visibility="visible" if label_visible else "collapsed",
-                  help="Register free at datamall.lta.gov.sg → My DataMall → request API access. Sent as the AccountKey "
-                       "header exactly as in the LTA guide. Kept in this browser session only; never stored or logged.")
-    return st.session_state.get("lta_key_persist", "")
+    if "lta_key_widget" not in st.session_state:
+        st.session_state["lta_key_widget"] = st.session_state.get("lta_key_persist", "")
+    c1, c2 = st.columns([3, 1])
+    with c1:
+        st.text_input("LTA DataMall AccountKey", type="password", key="lta_key_widget",
+                      placeholder="paste the key, then press Enter or Use key",
+                      on_change=_persist, args=("lta_key_widget", "lta_key_persist"),
+                      label_visibility="visible" if label_visible else "collapsed",
+                      help="Register free at datamall.lta.gov.sg → My DataMall → request API access. Sent as the AccountKey "
+                           "header exactly as in the LTA guide. Kept in this browser session only; never stored or logged.")
+    with c2:
+        st.write("") if label_visible else None
+        if st.button("Use key", key="lta_key_apply", width="stretch"):
+            st.session_state["lta_key_persist"] = st.session_state.get("lta_key_widget", "")
+            livemap.fetch_train_alerts.clear()
+            livemap.fetch_crowd.clear()
+            st.rerun()
+    key = st.session_state.get("lta_key_persist", "")
+    if key:
+        html(ui.chip("ok", "DataMall key in use for this session", f"…{key[-4:]}"))
+    return key
 
 
 def view_toggle() -> None:
