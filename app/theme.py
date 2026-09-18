@@ -89,7 +89,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
 /* never restyle icon glyphs: they are a ligature font, not text */
 [data-testid="stIconMaterial"] {{ font-family: "Material Symbols Rounded" !important; }}
 .stApp code, .stApp pre {{ font-family: var(--font-mono); }}
-[data-testid="stHeader"] {{ background: transparent; }}
+[data-testid="stHeader"] {{ background: var(--surface-page); z-index: 1000; }}
 .block-container {{ padding-top: 4.2rem; padding-bottom: 4rem; max-width: 1240px; }}
 h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-spacing: -0.01em; }}
 
@@ -270,12 +270,33 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 
 /* ---- transitions ---- */
 html {{ scroll-behavior: smooth; }}
-.block-container {{ animation: nw-rise .35s ease-out both; }}
-[data-testid="stTabs"] [role="tabpanel"] {{ animation: nw-rise .3s ease-out both; }}
+[data-testid="stTabs"] [role="tabpanel"] > div {{ animation: nw-fade .3s ease-out both; }}
+@keyframes nw-fade {{ from {{ opacity:0; }} to {{ opacity:1; }} }}
 [data-testid="stExpander"] details summary, .stButton > button, a[data-testid="stPageLink-NavLink"] {{ transition: background .15s ease, transform .15s ease, border-color .15s ease; }}
 a[data-testid="stPageLink-NavLink"]:hover {{ transform: translateX(3px); }}
 [data-testid="stSegmentedControl"] button {{ transition: background .15s ease, color .15s ease; }}
-[data-testid="stDeckGlJsonChart"], [data-testid="stPlotlyChart"] {{ animation: nw-rise .4s ease-out both; }}
+[data-testid="stDeckGlJsonChart"], [data-testid="stPlotlyChart"] {{ animation: nw-fade .4s ease-out both; }}
+
+/* ---- widgets follow the console theme (Day / Night override included) ---- */
+.stApp [data-baseweb="select"] > div, .stApp [data-baseweb="input"] > div, .stApp [data-baseweb="base-input"],
+.stApp .stTextInput input, .stApp .stDateInput input, .stApp [data-baseweb="popover"] > div, .stApp [data-baseweb="menu"] {{
+  background: var(--surface-card) !important; color: var(--ink-primary) !important; border-color: var(--line-hairline) !important; }}
+.stApp [data-baseweb="select"] svg, .stApp [data-baseweb="input"] svg {{ fill: var(--ink-secondary); }}
+.stApp [role="option"] {{ color: var(--ink-primary); }}
+.stApp [data-testid="stSegmentedControl"] button {{ background: var(--surface-card); color: var(--ink-secondary); border-color: var(--line-hairline); }}
+.stApp [data-testid="stSegmentedControl"] button[aria-checked="true"], .stApp [data-testid="stSegmentedControl"] button[data-selected="true"] {{
+  background: var(--surface-sunken); color: var(--series-1); border-color: var(--series-1); }}
+.stApp .stButton > button, .stApp .stDownloadButton > button {{ background: var(--surface-card); color: var(--ink-primary); }}
+.stApp [data-testid="stExpander"] details, .stApp [data-testid="stExpander"] summary {{ background: var(--surface-card); color: var(--ink-primary); }}
+.stApp [data-testid="stFileUploaderDropzone"] {{ color: var(--ink-secondary); }}
+.stApp [data-testid="stFileUploaderDropzone"] button {{ background: var(--surface-sunken); color: var(--ink-primary); border-color: var(--line-hairline); }}
+.stApp label, .stApp [data-testid="stWidgetLabel"] p, .stApp [data-testid="stCaptionContainer"] {{ color: var(--ink-secondary); }}
+.stApp [data-testid="stMarkdownContainer"] p, .stApp [data-testid="stMarkdownContainer"] li {{ color: var(--ink-primary); }}
+.stApp [data-testid="stTabs"] button {{ color: var(--ink-secondary); }}
+.stApp [data-testid="stTabs"] button[aria-selected="true"] {{ color: var(--series-1); }}
+.stApp a[data-testid="stPageLink-NavLink"] {{ color: var(--ink-primary); }}
+.stApp [data-testid="stToolbar"], .stApp [data-testid="stStatusWidget"] {{ color: var(--ink-secondary); }}
+[data-testid="stHeader"] [data-testid="stTopNav"] a, [data-testid="stHeader"] button {{ color: var(--ink-primary); }}
 
 /* ---- streamlit widget polish ---- */
 .stButton > button, .stDownloadButton > button {{ border-radius: var(--radius-md); font-weight: 600;

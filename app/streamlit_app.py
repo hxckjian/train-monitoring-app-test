@@ -1028,9 +1028,9 @@ def acv_page() -> None:
           f"back to the mean excess: Car {top} ran {s_top:+.2f} °C hotter than the median of the other seven "
           f"cars, Car {second} {s_2:+.2f} °C. ") if s_2 is not None else "") +
         (
-         f"A car that has lost refrigerant cannot hold its cabin down when the load rises, so it shows "
-         f"hot episodes the other cars do not. Comparing cars to each other cancels the weather, the "
-         f"passenger load and the route, which all eight cars share." if v2 else
+         "A car that has lost refrigerant cannot hold its cabin down when the load rises, so it shows "
+         "hot episodes the other cars do not. Comparing cars to each other cancels the weather, the "
+         "passenger load and the route, which all eight cars share." if v2 else
          f"During cooling, Car {top}'s cabin ran {s_top:+.2f} °C against the median of the other "
          f"seven cars on the same train at the same moment. Comparing cars to each other cancels "
          f"the weather, the passenger load and the route, which all eight cars share.")

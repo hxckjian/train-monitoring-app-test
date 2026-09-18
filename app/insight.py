@@ -4,7 +4,6 @@ tests/test_insight.py can exercise them directly.
 """
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 import pydeck as pdk
 

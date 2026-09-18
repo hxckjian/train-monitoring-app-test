@@ -35,7 +35,7 @@ def acv_train(ranking: list[str], scores: dict, hot: dict | None, unobserved: li
     w, gap, h = 96, 8, 64
     total = n * w + (n - 1) * gap + 40
     out = [f'<svg viewBox="0 0 {total} 120" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Train cars ranked by likelihood of refrigerant leak">']
-    out.append(f'<text x="20" y="16" font-size="11" fill="#8b96a3" letter-spacing="1.5">TRAIN · CARS 01–08 · RANK 1 = MOST LIKELY LEAK</text>')
+    out.append('<text x="20" y="16" font-size="11" fill="#8b96a3" letter-spacing="1.5">TRAIN · CARS 01–08 · RANK 1 = MOST LIKELY LEAK</text>')
     for i, c in enumerate(cars):
         x = 20 + i * (w + gap)
         rank = ranking.index(c) + 1
@@ -86,13 +86,12 @@ def rail_train(grid: pd.DataFrame, prediction: str) -> str:
             v, rms = lookup.get((car, pos), (0.0, 0.0))
             out.append(f'<circle cx="{x + 14 + k * 25}" cy="132" r="8" fill="{_ramp(v)}" stroke="#0e1319"><title>Car {car} pos {pos} · RMS {rms:.3f}</title></circle>')
     # rails
-    y1 = 60 if prediction == "Side I" else None
     for y, side in ((48, "Side I"), (144, "Side II")):
         hit = prediction == side
         col = "#e0434f" if hit else "#3a4756"
         out.append(f'<line x1="70" y1="{y}" x2="{total - 20}" y2="{y}" stroke="{col}" stroke-width="{4 if hit else 2}" stroke-dasharray="{"6 4" if hit else "0"}">'
-                   + (f'<animate attributeName="stroke-dashoffset" values="0;-20" dur="1s" repeatCount="indefinite"/>'
-                      f'<animate attributeName="opacity" values="1;.45;1" dur="1.6s" repeatCount="indefinite"/>' if hit else "") + '</line>')
+                   + ('<animate attributeName="stroke-dashoffset" values="0;-20" dur="1s" repeatCount="indefinite"/>'
+                      '<animate attributeName="opacity" values="1;.45;1" dur="1.6s" repeatCount="indefinite"/>' if hit else "") + '</line>')
         out.append(f'<text x="{total - 12}" y="{y + 5}" text-anchor="end" font-size="13" fill="{col if hit else "#16a97a"}">{GLYPH["alert"] if hit else GLYPH["ok"]}</text>')
     out.append('</svg>')
     return "".join(out)

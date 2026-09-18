@@ -106,7 +106,7 @@ def main() -> int:
                                      np.arange(1.0, 14.01, 0.25))
     m_hat, logC_hat, mape_in = refine(cycles, names, d_true, log_ref, m_hat, 0.25)
     C_hat = float(np.exp(logC_hat + m_hat * log_ref))   # undo the normalisation
-    print(f"\nIN-SAMPLE FIT (diagnostic only, NOT a validation score)")
+    print("\nIN-SAMPLE FIT (diagnostic only, NOT a validation score)")
     print(f"  m = {m_hat:.4f}   C = {C_hat:.6g}")
     print(f"  MAPE = {mape_in*100:.4f}%   score = {max(0.0, 1-mape_in):.6f}")
     if mape_in < 0.02:

@@ -23,7 +23,6 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.base import clone
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, f1_score
 from sklearn.model_selection import StratifiedGroupKFold

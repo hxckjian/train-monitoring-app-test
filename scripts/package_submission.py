@@ -54,14 +54,11 @@ def main() -> None:
 
     opt = team / "Optional_Items"
     opt.mkdir()
-    write_up = opt / "write_up.md"
-    parts = ["# NebulaX PS3 write-up (covers all four subsystems)\n",
-             "This single write-up covers Door, ACV, Rail Corrugation and SHM.\n"]
-    for name in ("HANDOFF.md", "DESIGN.md", "PROJECT-STATE.md"):
-        p = ROOT / name
-        if p.exists():
-            parts.append(f"\n\n---\n\n## From {name}\n\n" + p.read_text(encoding="utf-8"))
-    write_up.write_text("".join(parts), encoding="utf-8")
+    from scripts.write_up import main as write_up_main
+    write_up_main()                                   # WRITEUP.md from the model cards, numbers never typed
+    (opt / "write_up.md").write_text((ROOT / "WRITEUP.md").read_text(encoding="utf-8"), encoding="utf-8")
+    for name in ("DESIGN.md", "PROJECT-STATE.md"):    # supporting evidence beside it
+        shutil.copy2(ROOT / name, opt / name)
 
     for key, folder in FOLDER.items():
         src = ROOT / "subsystems" / key

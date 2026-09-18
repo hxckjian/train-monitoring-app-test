@@ -209,7 +209,7 @@ def main() -> int:
 
     gap_seconds, gap_diag = derive_gap_seconds(df)
     segments = segment_data(df, gap_seconds)
-    print(f"\nSEGMENTATION (threshold derived from data, answer file not used)")
+    print("\nSEGMENTATION (threshold derived from data, answer file not used)")
     print(f"  largest within-cycle gap : {gap_diag['largest_within_cycle_gap_s']:.4f} s")
     print(f"  smallest between-cycle gap: {gap_diag['smallest_between_cycle_gap_s']:.4f} s")
     print(f"  separation ratio          : {gap_diag['separation_ratio']:.1f}x")
