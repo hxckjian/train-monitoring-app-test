@@ -24,6 +24,7 @@ import streamlit as st
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 GEOJSON_CANDIDATES = [
+    PROJECT_ROOT / "data" / "stations" / "AmendmenttoMP2014RailStation.geojson",
     PROJECT_ROOT / "repo" / "PS2" / "data" / "AmendmenttoMP2014RailStation.geojson",
     Path.home() / "Documents" / "Nebula" / "NebulaX-Hackathon-ProblemStatement" / "PS2"
     / "data" / "AmendmenttoMP2014RailStation.geojson",
