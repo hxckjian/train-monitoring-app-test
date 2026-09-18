@@ -299,6 +299,15 @@ a[data-testid="stPageLink-NavLink"]:hover {{ transform: translateX(3px); }}
 [data-baseweb="popover"] li, [data-baseweb="popover"] [role="option"] {{ background: var(--surface-card) !important; color: var(--ink-primary) !important; }}
 [data-baseweb="popover"] li:hover, [data-baseweb="popover"] [role="option"]:hover, [data-baseweb="popover"] [aria-selected="true"] {{ background: var(--surface-sunken) !important; }}
 [data-baseweb="calendar"], [data-baseweb="calendar"] * {{ background-color: var(--surface-card); color: var(--ink-primary); }}
+/* select and multiselect shells: no attribute hook in this build, so reach them through the combobox */
+.stApp .stSelectbox div:has(> [role="combobox"]), .stApp .stSelectbox div:has(> div > [role="combobox"]),
+.stApp .stMultiSelect div:has(> [role="combobox"]), .stApp .stMultiSelect div:has(> div > [role="combobox"]),
+.stApp .stSelectbox div:has(> input), .stApp .stMultiSelect div:has(> input),
+.stApp .stTextInput div:has(> input), .stApp .stDateInput div:has(> input), .stApp .stNumberInput div:has(> input) {{
+  background-color: var(--surface-card) !important; border-color: var(--line-hairline) !important; color: var(--ink-primary) !important; }}
+.stApp .stSelectbox [role="combobox"], .stApp .stMultiSelect [role="combobox"], .stApp .stSelectbox input, .stApp .stMultiSelect input {{
+  color: var(--ink-primary) !important; -webkit-text-fill-color: var(--ink-primary) !important; }}
+.stApp .stSelectbox svg, .stApp .stMultiSelect svg, .stApp .stDateInput svg {{ fill: var(--ink-secondary) !important; }}
 /* buttons, expanders, uploader, tabs, links, labels */
 .stApp .stButton > button, .stApp .stDownloadButton > button {{ background: var(--surface-card) !important; color: var(--ink-primary) !important; border-color: var(--line-control) !important; }}
 .stApp .stButton > button[kind="primary"], .stApp .stDownloadButton > button[kind="primary"] {{ background: var(--series-1) !important; border-color: var(--series-1) !important; color: #fff !important; }}
