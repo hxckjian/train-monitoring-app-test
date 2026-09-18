@@ -1,0 +1,21 @@
+<!-- @dsCard group="Foundations" height=430 subtitle="The four-part answer: state, meaning, action, evidence" -->
+<div id="r" style="padding:16px"></div>
+<script>
+  var W = window.NebulaWayside;
+  document.getElementById("r").appendChild(W.VerdictCard({
+    state: "alert",
+    subsystem: "ACV",
+    title: "Car 03 air conditioning",
+    meaning: "Car 03 has been running 4.2 \u00B0C above its cooling setpoint while the other seven cars hold theirs. That pattern is consistent with a refrigerant leak.",
+    figure: W.CarRank({
+      label: "Cars ranked by setpoint drift",
+      cars: [
+        { id: "03", score: 4.21 }, { id: "07", score: 1.402 }, { id: "01", score: 0.98 },
+        { id: "05", score: 0.77 }, { id: "02", score: 0.64 }, { id: "08", score: 0.51 },
+        { id: "04", score: 0.42 }, { id: "06", score: 0.31 }
+      ]
+    }),
+    action: "Inspect Car 03 refrigerant charge at next depot visit.",
+    evidence: "drift score 4.21 \u00B7 leave-one-case-out on 6 cases \u00B7 model acv-v2"
+  }));
+</script>

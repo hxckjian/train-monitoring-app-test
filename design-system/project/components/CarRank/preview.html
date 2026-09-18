@@ -1,0 +1,14 @@
+<!-- @dsCard group="Subsystem visuals" height=270 subtitle="Eight cars ranked by likelihood of fault" -->
+<div id="r" style="padding:16px"></div>
+<script>
+  var W = window.NebulaWayside;
+  document.getElementById("r").appendChild(W.CarRank({
+    label: "acv_test_case.xlsx \u2014 cars ranked by setpoint drift",
+    cars: [
+      { id: "03", score: 4.21 }, { id: "07", score: 1.402 }, { id: "01", score: 0.98 },
+      { id: "05", score: 0.77 }, { id: "02", score: 0.64 }, { id: "08", score: 0.51 },
+      { id: "04", score: 0.42 }, { id: "06", score: 0.31 }
+    ],
+    caption: "rank-decay 0.875 mean, leave-one-case-out on 6 cases \u00B7 random baseline 0.5625"
+  }));
+</script>

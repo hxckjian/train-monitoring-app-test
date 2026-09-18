@@ -1,0 +1,175 @@
+/* Nebula Wayside component styles.
+   Every value here resolves to a token from tokens.json. If you find yourself
+   typing a literal colour or pixel value, the system is missing a token. */
+
+.nw-chip,
+.nw-card,
+.nw-gauge,
+.nw-timeline,
+.nw-grid,
+.nw-rank {
+  font-family: var(--font-sans);
+  color: var(--ink-primary);
+}
+
+/* ---- StatusChip ------------------------------------------------------- */
+.nw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.nw-chip__glyph { font-size: 11px; line-height: 1; }
+.nw-chip__detail { color: var(--ink-secondary); font-weight: 400; letter-spacing: 0; }
+
+.nw-chip--ok      { background: var(--status-ok-soft);    color: var(--status-ok); }
+.nw-chip--watch   { background: var(--status-watch-soft); color: var(--status-watch); }
+.nw-chip--alert   { background: var(--status-alert-soft); color: var(--status-alert); }
+.nw-chip--unknown { background: var(--surface-sunken);    color: var(--status-unknown); }
+
+/* ---- VerdictCard ------------------------------------------------------ */
+.nw-card {
+  background: var(--surface-card);
+  border: var(--stroke-hairline) solid var(--line-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-5);
+  max-width: 520px;
+}
+.nw-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.nw-card__subsystem {
+  font-size: 11px;
+  line-height: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.nw-card__title {
+  margin: 0 0 var(--space-2);
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
+}
+.nw-card__meaning {
+  margin: 0 0 var(--space-4);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 500;
+  color: var(--ink-secondary);
+}
+.nw-card__figure { margin: 0 0 var(--space-4); }
+.nw-card__action {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  line-height: 22px;
+}
+.nw-card__evidence {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--ink-muted);
+}
+
+/* ---- shared figure furniture ------------------------------------------ */
+.nw-gauge__label,
+.nw-timeline__label,
+.nw-grid__label,
+.nw-rank__label {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--ink-secondary);
+  margin-bottom: var(--space-2);
+}
+.nw-gauge__caption,
+.nw-timeline__caption,
+.nw-grid__caption,
+.nw-rank__caption {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--ink-muted);
+}
+.nw-gauge__scale,
+.nw-timeline__axis,
+.nw-grid__axis {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--ink-muted);
+  margin-top: var(--space-1);
+}
+
+/* ---- DamageGauge ------------------------------------------------------ */
+.nw-gauge { max-width: 360px; }
+.nw-gauge__value {
+  font-family: var(--font-mono);
+  font-size: 40px;
+  line-height: 42px;
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+}
+
+/* ---- AxleGrid --------------------------------------------------------- */
+.nw-grid { max-width: 420px; }
+.nw-grid__axis { padding-left: 34px; }
+
+/* ---- CarRank ---------------------------------------------------------- */
+.nw-rank { max-width: 420px; }
+.nw-rank__list { list-style: none; margin: 0; padding: 0; }
+.nw-rank__row {
+  display: grid;
+  grid-template-columns: 18px 58px 1fr 38px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+}
+.nw-rank__pos {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-align: right;
+}
+.nw-rank__car { font-size: 13px; line-height: 18px; }
+.nw-rank__row.is-top .nw-rank__car { font-weight: 600; }
+.nw-rank__track {
+  height: 10px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.nw-rank__fill { display: block; height: 100%; border-radius: var(--radius-sm); }
+.nw-rank__score {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 18px;
+  text-align: right;
+  color: var(--ink-secondary);
+}
+
+/* ---- focus ------------------------------------------------------------ */
+.nw-card :focus-visible,
+.nw-rank :focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}

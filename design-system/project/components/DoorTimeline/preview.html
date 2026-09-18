@@ -1,0 +1,19 @@
+<!-- @dsCard group="Subsystem visuals" height=190 subtitle="A continuous stream cut into classified cycles" -->
+<div id="r" style="padding:16px"></div>
+<script>
+  var W = window.NebulaWayside;
+  document.getElementById("r").appendChild(W.DoorTimeline({
+    label: "Test.csv \u2014 7 cycles found in 180 s",
+    duration: 180,
+    segments: [
+      { id: "seg_001", start: 0.0,   end: 3.7,   status: "ok" },
+      { id: "seg_002", start: 24.0,  end: 26.8,  status: "ok" },
+      { id: "seg_003", start: 51.3,  end: 54.0,  status: "alert" },
+      { id: "seg_004", start: 78.1,  end: 81.0,  status: "ok" },
+      { id: "seg_005", start: 103.4, end: 106.9, status: "ok" },
+      { id: "seg_006", start: 129.0, end: 132.6, status: "alert" },
+      { id: "seg_007", start: 158.2, end: 161.0, status: "ok" }
+    ],
+    caption: "IoU-weighted F1 0.84 on contiguous time-block CV \u00B7 model door-v4"
+  }));
+</script>

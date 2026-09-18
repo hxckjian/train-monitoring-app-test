@@ -1,0 +1,89 @@
+{
+  "model_version": "door-v1",
+  "trained_at_seed": 20260918,
+  "gap_seconds": 0.45199557519958095,
+  "gap_diagnostics": {
+    "largest_within_cycle_gap_s": 0.02,
+    "smallest_between_cycle_gap_s": 10.215,
+    "separation_ratio": 510.75
+  },
+  "feature_columns": [
+    "duration_s",
+    "n_rows",
+    "cur_mean",
+    "cur_std",
+    "cur_max",
+    "cur_med",
+    "cur_p25",
+    "cur_p75",
+    "cur_p90",
+    "cur_mean_mid",
+    "cur_integral",
+    "cur_above_med_frac",
+    "volt_mean",
+    "volt_std",
+    "emf_mean",
+    "emf_std",
+    "emf_max",
+    "cur_per_volt",
+    "cur_per_emf",
+    "pos_min",
+    "pos_max",
+    "pos_range",
+    "pos_travel",
+    "frac_opening",
+    "frac_closing",
+    "is_closing",
+    "switch_transitions"
+  ],
+  "labels": [
+    "Normal",
+    "Abnormal resistance"
+  ],
+  "n_training_segments": 110,
+  "n_abnormal": 30,
+  "validation": {
+    "split": "5 contiguous time blocks over the ordered cycle sequence, no shuffling, grouped so no cycle is split",
+    "metric": "IoU-weighted F1 (Door_Subsystem_Info_Kit.md Section 4)",
+    "mean_iou_weighted_f1": 0.990909090909091,
+    "std_iou_weighted_f1": 0.018181818181818167,
+    "mean_accuracy": 0.990909090909091,
+    "folds": [
+      {
+        "fold": 1,
+        "n_segments": 22,
+        "n_abnormal": 7,
+        "iou_weighted_f1": 0.9545454545454546,
+        "accuracy": 0.9545454545454546
+      },
+      {
+        "fold": 2,
+        "n_segments": 22,
+        "n_abnormal": 3,
+        "iou_weighted_f1": 1.0,
+        "accuracy": 1.0
+      },
+      {
+        "fold": 3,
+        "n_segments": 22,
+        "n_abnormal": 7,
+        "iou_weighted_f1": 1.0,
+        "accuracy": 1.0
+      },
+      {
+        "fold": 4,
+        "n_segments": 22,
+        "n_abnormal": 6,
+        "iou_weighted_f1": 1.0,
+        "accuracy": 1.0
+      },
+      {
+        "fold": 5,
+        "n_segments": 22,
+        "n_abnormal": 7,
+        "iou_weighted_f1": 1.0,
+        "accuracy": 1.0
+      }
+    ]
+  }
+}

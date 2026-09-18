@@ -1,0 +1,87 @@
+<!-- @dsCard height=288 -->
+<div class="cover">
+  <!--
+    blocks: series-1 / series-4 / series-3 / series-2 at full value as four unequal vertical
+            slabs, widths 120 / 80 / 96 / 160 px (space-8 multiples and sums), bleeding off the
+            top, bottom and right edges.
+    arrangement: unequal vertical bands read left to right, the way track segments pass a fixed
+            wayside post - deliberately not four equal fields, which would be a swatch table.
+    pattern: two horizontal bands of ground-coloured tiles punched through the slabs, four-high
+            in spirit and split by a space-5 gutter - the AxleGrid motif of Side I over Side II,
+            chosen because the two-band axle-box grid is the one shape unique to this product.
+    scales: tile 32px (space-6) x 24px (space-5), gap 8px (space-2), pitch 40px, corners
+            radius-md 8px, band gutter space-5, text inset space-7 48px.
+  -->
+  <svg viewBox="0 0 960 288" width="960" height="288" role="img" aria-label="Nebula Wayside">
+    <defs>
+      <clipPath id="nw-right"><rect x="480" y="0" width="480" height="288"/></clipPath>
+    </defs>
+
+    <rect x="0" y="0" width="960" height="288" class="ground"/>
+
+    <g clip-path="url(#nw-right)">
+      <rect x="480" y="-8" width="120" height="304" class="b1"/>
+      <rect x="608" y="-8" width="80"  height="304" class="b4"/>
+      <rect x="696" y="-8" width="96"  height="304" class="b3"/>
+      <rect x="800" y="-8" width="168" height="304" class="b2"/>
+
+      <g class="tile">
+        <rect x="496" y="96"  width="32" height="24" rx="8"/>
+        <rect x="536" y="96"  width="32" height="24" rx="8"/>
+        <rect x="576" y="96"  width="32" height="24" rx="8"/>
+        <rect x="616" y="96"  width="32" height="24" rx="8"/>
+        <rect x="656" y="96"  width="32" height="24" rx="8"/>
+        <rect x="696" y="96"  width="32" height="24" rx="8"/>
+        <rect x="736" y="96"  width="32" height="24" rx="8"/>
+        <rect x="776" y="96"  width="32" height="24" rx="8"/>
+        <rect x="816" y="96"  width="32" height="24" rx="8"/>
+        <rect x="856" y="96"  width="32" height="24" rx="8"/>
+        <rect x="896" y="96"  width="32" height="24" rx="8"/>
+
+        <rect x="496" y="144" width="32" height="24" rx="8"/>
+        <rect x="536" y="144" width="32" height="24" rx="8"/>
+        <rect x="576" y="144" width="32" height="24" rx="8"/>
+        <rect x="616" y="144" width="32" height="24" rx="8"/>
+        <rect x="656" y="144" width="32" height="24" rx="8"/>
+        <rect x="696" y="144" width="32" height="24" rx="8"/>
+        <rect x="736" y="144" width="32" height="24" rx="8"/>
+        <rect x="776" y="144" width="32" height="24" rx="8"/>
+        <rect x="816" y="144" width="32" height="24" rx="8"/>
+        <rect x="856" y="144" width="32" height="24" rx="8"/>
+        <rect x="896" y="144" width="32" height="24" rx="8"/>
+      </g>
+    </g>
+
+    <text class="name" x="48" y="178">Nebula</text>
+    <text class="name" x="48" y="246">Wayside</text>
+    <text class="tag"  x="48" y="270">Condition monitoring for rail vehicles</text>
+  </svg>
+</div>
+
+<style>
+  .cover { margin: 0; line-height: 0; }
+  .cover svg { display: block; width: 100%; height: auto; }
+
+  .ground { fill: var(--surface-page); }
+
+  .b1 { fill: var(--series-1); }
+  .b2 { fill: var(--series-2); }
+  .b3 { fill: var(--series-3); }
+  .b4 { fill: var(--series-4); }
+
+  .tile rect { fill: var(--surface-page); }
+
+  .name {
+    font-family: var(--font-sans);
+    font-size: 72px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    fill: var(--ink-primary);
+  }
+  .tag {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+    fill: var(--ink-muted);
+  }
+</style>

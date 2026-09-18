@@ -1,0 +1,47 @@
+name: nebula-ps3
+
+# Isolated environment for the NebulaX PS3 work.
+# Deliberately separate from any other environment on this machine (notably the
+# FYP torch environment) so nothing here can disturb that work.
+#
+#   conda env create -f environment.yml
+#   conda activate nebula-ps3
+#   python -m ipykernel install --user --name nebula-ps3 --display-name "Python (nebula-ps3)"
+#
+# No torch: nothing in PS3 needs a GPU. Rainflow counting, gradient boosting and
+# FFTs are all CPU work, and keeping torch out keeps this environment small and
+# fast to rebuild.
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.11
+
+  # core numerics / IO
+  - numpy
+  - pandas
+  - scipy
+  - pyarrow          # fast columnar IO for the 5.5 GB Rail set
+  - openpyxl         # ACV .xlsx cases
+
+  # modelling
+  - scikit-learn
+  - lightgbm
+
+  # app + visuals
+  - streamlit
+  - matplotlib
+  - plotly
+
+  # notebooks
+  - jupyterlab
+  - ipykernel
+
+  # discipline
+  - pytest
+  - pytest-cov
+
+  - pip
+  - pip:
+      - rainflow     # ASTM E1049 rainflow counting; not on conda-forge

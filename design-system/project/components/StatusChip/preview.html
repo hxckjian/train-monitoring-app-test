@@ -1,0 +1,9 @@
+<!-- @dsCard group="Foundations" height=96 subtitle="State as colour plus shape plus word" -->
+<div id="r" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:16px"></div>
+<script>
+  var W = window.NebulaWayside, r = document.getElementById("r");
+  ["ok", "watch", "alert", "unknown"].forEach(function (s) {
+    r.appendChild(W.StatusChip({ state: s }));
+  });
+  r.appendChild(W.StatusChip({ state: "alert", label: "Fault", detail: "Car 03" }));
+</script>

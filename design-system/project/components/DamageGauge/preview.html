@@ -1,0 +1,13 @@
+<!-- @dsCard group="Subsystem visuals" height=210 subtitle="One magnitude against the scale that gives it meaning" -->
+<div id="r" style="display:flex;gap:40px;flex-wrap:wrap;padding:16px"></div>
+<script>
+  var W = window.NebulaWayside, r = document.getElementById("r");
+  r.appendChild(W.DamageGauge({
+    label: "Cumulative damage \u2014 test03.csv", value: 0.412, max: 1, threshold: 1,
+    caption: "MAPE 8.1% on 5-fold CV, constants fitted in-fold \u00B7 model shm-v3"
+  }));
+  r.appendChild(W.DamageGauge({
+    label: "Cumulative damage \u2014 test11.csv", value: 0.086, max: 1, threshold: 1,
+    caption: "MAPE 8.1% on 5-fold CV, constants fitted in-fold \u00B7 model shm-v3"
+  }));
+</script>
