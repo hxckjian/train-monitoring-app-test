@@ -121,6 +121,24 @@ def events_from_result(key: str, res: dict, context: dict | None = None,
     return rows
 
 
+def append_unique(rows: list[dict]) -> tuple[int, int]:
+    """Append only events whose identity (subsystem, file, title, train) is not in the
+    log yet, so analysing the same file twice does not double its events.
+    Returns (added, skipped)."""
+    if not rows:
+        return 0, 0
+    existing = set(load()["id"]) if EVENTS_PATH.exists() else set()
+    fresh, skipped = [], 0
+    for r in rows:
+        eid = event_id(r)
+        if eid in existing:
+            skipped += 1
+            continue
+        existing.add(eid)
+        fresh.append({**r, "id": eid})
+    return append(fresh), skipped
+
+
 def append(rows: list[dict]) -> int:
     if not rows:
         return 0
@@ -133,7 +151,7 @@ def append(rows: list[dict]) -> int:
 
 def load() -> pd.DataFrame:
     cols = ["time", "analysed_at", "subsystem", "subsystem_name", "state", "severity", "title", "detail",
-            "file_id", "train", "line", "station", "source"]
+            "file_id", "train", "line", "station", "source", "id"]
     if not EVENTS_PATH.exists():
         return pd.DataFrame(columns=cols)
     rows = []
@@ -159,6 +177,8 @@ def load() -> pd.DataFrame:
     # missing context is None, never NaN, so page code can rely on `or`
     for c in ("train", "line", "station", "source", "file_id", "detail", "title"):
         df[c] = df[c].astype(object).where(df[c].notna(), None)
+    if "id" not in df or df["id"].isna().any():
+        df["id"] = [event_id(r) for _, r in df.iterrows()]
     return df.sort_values("time", ascending=False).reset_index(drop=True)
 
 
@@ -248,7 +268,8 @@ def with_status(df: pd.DataFrame) -> pd.DataFrame:
         return df.assign(id=[], status=[], note=[], status_at=[])
     acts = statuses()
     out = df.copy()
-    out["id"] = [event_id(r) for _, r in out.iterrows()]
+    if "id" not in out or out["id"].isna().any():
+        out["id"] = [event_id(r) for _, r in out.iterrows()]
     out["status"] = [acts.get(i, {}).get("status", "open" if s in ("alert", "watch") else "—")
                      for i, s in zip(out["id"], out["state"])]
     out["note"] = [acts.get(i, {}).get("note", "") for i in out["id"]]

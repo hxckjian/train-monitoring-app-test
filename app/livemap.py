@@ -196,7 +196,7 @@ def fetch_sgmrt(limit: int = 8) -> dict:
         return {"ok": False, "reason": f"could not reach t.me ({type(exc).__name__})", "posts": []}
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=120, show_spinner=False)
 def fetch_weather() -> dict:
     """Live NEA readings from data.gov.sg (no key): air temperature, rainfall and
     the 2-hour area forecast. Returns {'ok', 'stations': DataFrame, 'forecast': DataFrame}."""

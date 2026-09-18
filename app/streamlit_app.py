@@ -53,6 +53,17 @@ def html(s: str) -> None:
     st.markdown(s, unsafe_allow_html=True)
 
 
+def txt(v, default: str = "—") -> str:
+    """Display string for a value that may be None or NaN. Kept in this file on purpose:
+    the script reloads on every deploy, imported modules only on a restart."""
+    try:
+        if v is None or (isinstance(v, float) and v != v):
+            return default
+    except Exception:
+        return default
+    return str(v) if str(v) not in ("", "nan", "None") else default
+
+
 def plot(fig) -> None:
     st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
@@ -127,8 +138,9 @@ def run_panel(spec: SubsystemSpec, button: str):
                 with st.spinner("Analysing..."):
                     res = spec.module.analyze(as_files(payload))
             st.session_state[f"{spec.key}_result"] = res
-            n = event_log.append(event_log.events_from_result(spec.key, res, ctx))
-            st.toast(f"{n} event(s) logged to the fleet log", icon="✅")
+            added, skipped = event_log.append_unique(event_log.events_from_result(spec.key, res, ctx))
+            st.toast(f"{added} new event(s) logged"
+                     + (f", {skipped} already in the log (same file, same verdicts)" if skipped else ""), icon="✅")
         except (ValueError, FileNotFoundError) as exc:
             st.session_state.pop(f"{spec.key}_result", None)
             html(ui.verdict("unknown", spec.name, "This input could not be assessed",
@@ -200,20 +212,36 @@ def overview_page() -> None:
     worst = max(states.values(), key=lambda x: rank[x])
     live = [sp for sp in SUBSYSTEMS.values() if sp.available and sp.test_inputs()]
 
-    # ---- hero: one line of truth, the live weather, the clock
-    weather = livemap.fetch_weather()
-    wx_lines, wx_emoji, wx_big = [], "🌤️", "—"
-    if weather.get("ok"):
-        w = livemap.weather_near(weather, 1.30, 103.85)
-        wx_emoji = livemap.weather_emoji(w.get("forecast"), w.get("rain_mm"))
-        wx_big = f"{w.get('temp_c', float('nan')):.1f} °C"
-        wx_lines = [f"{w.get('forecast', '')}", f"rain {w.get('rain_mm', 0):.1f} mm · {weather.get('reading_time', '')} SGT"]
-    n_open_headline = sum(1 for e in ev if e["state"] == "alert")
-    headline = {"alert": f"{n_open_headline} fault(s) need attention", "watch": "Nothing failing, some things to watch",
-                "ok": "Fleet is healthy", "unknown": "Drop a file to begin"}[worst]
-    html(ui.hero("Nebula Wayside · " + event_log.now().strftime("%a %d %b · %H:%M SGT"), headline,
-                 "Door, structural health, rail corrugation and air conditioning on one screen, with the "
-                 "network they run on and the live conditions around it.", wx_emoji, wx_big, wx_lines))
+    # ---- hero: the log is the single source of truth; refreshes itself every 60 s
+    log_all = event_log.with_status(event_log.load())
+    n_open_faults = int(((log_all["state"] == "alert") & (log_all["status"] == "open")).sum()) if len(log_all) else 0
+    n_open_watch = int(((log_all["state"] == "watch") & (log_all["status"] == "open")).sum()) if len(log_all) else 0
+
+    @st.fragment(run_every="60s")
+    def hero_fragment():
+        weather = livemap.fetch_weather()
+        wx_lines, wx_emoji, wx_big = [], "🌤️", "—"
+        if weather.get("ok"):
+            w = livemap.weather_near(weather, 1.30, 103.85)
+            wx_emoji = livemap.weather_emoji(w.get("forecast"), w.get("rain_mm"))
+            wx_big = f"{w.get('temp_c', float('nan')):.1f} °C"
+            wx_lines = [f"{w.get('forecast', '')}",
+                        f"rain {w.get('rain_mm', 0):.1f} mm · NEA reading {weather.get('reading_time', '')} SGT"]
+        else:
+            wx_lines = [f"weather unavailable: {weather.get('reason', '')}"]
+        if n_open_faults:
+            headline = f"{n_open_faults} open fault(s) need an owner"
+        elif n_open_watch:
+            headline = f"Nothing failing · {n_open_watch} on watch"
+        elif len(log_all):
+            headline = "Fleet is healthy"
+        else:
+            headline = "Drop a file to begin"
+        html(ui.hero("Nebula Wayside · " + event_log.now().strftime("%a %d %b · %H:%M:%S SGT") + " · refreshes every minute",
+                     headline, "Door, structural health, rail corrugation and air conditioning on one screen, "
+                     "with the network they run on and the live conditions around it.", wx_emoji, wx_big, wx_lines))
+
+    hero_fragment()
 
     # ---- quick drop: any competition-format file, routed by its own layout
     q1, q2 = st.columns([2.2, 1], gap="medium")
@@ -236,7 +264,9 @@ def overview_page() -> None:
                     try:
                         res = SUBSYSTEMS[k].module.analyze(as_files([(n, d) for n, d, _ in v]))
                         st.session_state[f"{k}_result"] = res
-                        event_log.append(event_log.events_from_result(k, res, {"source": "run"}))
+                        added, skipped = event_log.append_unique(event_log.events_from_result(k, res, {"source": "run"}))
+                        st.toast(f"{SUBSYSTEMS[k].name}: {added} new event(s)"
+                                 + (f", {skipped} duplicate(s) skipped" if skipped else ""), icon="✅")
                     except (ValueError, FileNotFoundError) as exc:
                         st.error(f"{SUBSYSTEMS[k].name}: {exc}")
                 bar.empty()
@@ -259,14 +289,8 @@ def overview_page() -> None:
     acv_top = results["acv"]["files"][0]["ranking"][0] if results.get("acv") else None
     n_unassessed = sum(1 for v in states.values() if v == "unknown")
 
-    open_faults = 0
-    try:
-        _lg = event_log.with_status(event_log.load())
-        open_faults = int(((_lg["state"] == "alert") & (_lg["status"] == "open")).sum()) if len(_lg) else 0
-    except Exception:
-        pass
-    if open_faults:
-        html(ui.beacon(f"{open_faults} open fault(s) need an owner",
+    if n_open_faults:
+        html(ui.beacon(f"{n_open_faults} open fault(s) need an owner",
                        "acknowledge or close them in the work queue below"))
     left, right = st.columns([1, 2.15], gap="medium")
     with left:
@@ -353,8 +377,8 @@ def overview_page() -> None:
                      f'<div class="h" style="display:flex;gap:10px;align-items:center">{ui.pill(x.state, ui.STATES[x.state][1])}'
                      f'<b>{quickdrop.SUBSYSTEM_EMOJI.get(x.subsystem, "")} {x.title}</b><span class="mono" style="margin-left:auto;font-size:11px;color:var(--ink-muted)">'
                      f'{event_log.fmt_time(x.time)}</span></div>'
-                     f'<div class="muted" style="font-size:12px;margin-top:4px">{x.subsystem_name} · {event_log.txt(x.train, "train not known")} · '
-                     f'{event_log.txt(x.station, "location not known").title()} · {event_log.txt(x.detail, "")}'
+                     f'<div class="muted" style="font-size:12px;margin-top:4px">{x.subsystem_name} · {txt(x.train, "train not known")} · '
+                     f'{txt(x.station, "location not known").title()} · {txt(x.detail, "")}'
                      + (f' · <i>{x.note}</i>' if x.note else "") + '</div></div>')
             with c2:
                 if x.status == "open" and st.button("Acknowledge", key=f"ack_{x.id}", width="stretch"):
@@ -843,13 +867,10 @@ def fleet_page() -> None:
     df = insight.with_zones(livemap.stations())
     last = log["analysed_at"].max() if len(log) else None
 
-    # ---- filters
-    f1, f2, f3, f4, f5 = st.columns([1.5, 1.1, 1.2, 1.0, 1.4])
-    with f1:
-        rng = st.segmented_control("Time range", list(RANGES), default="7 days", key="fleet_range") or "7 days"
+    # ---- filters: what, then when
+    f2, f3, f4, f5 = st.columns([1.2, 1.3, 1.0, 1.5])
     with f2:
-        lines = st.multiselect("Lines", list(livemap.LINES), default=[], key="fleet_lines",
-                               placeholder="All lines")
+        lines = st.multiselect("Lines", list(livemap.LINES), default=[], key="fleet_lines", placeholder="All lines")
     with f3:
         subs = st.multiselect("Subsystems", list(event_log.SUBSYSTEM_NAME.values()), default=[],
                               key="fleet_subs", placeholder="All subsystems")
@@ -862,22 +883,30 @@ def fleet_page() -> None:
                             help="Register free at datamall.lta.gov.sg → My DataMall → request API access. The key "
                                  "is sent as the AccountKey header, the same way as the curl example in the LTA guide. "
                                  "Nothing is stored.")
-    if rng == "Custom":
-        d1, d2 = st.columns(2)
-        with d1:
-            start_d = st.date_input("From", value=event_log.now().date() - pd.Timedelta(days=7), key="fleet_from")
-        with d2:
-            end_d = st.date_input("To", value=event_log.now().date(), key="fleet_to")
-        t0 = pd.Timestamp(start_d, tz=event_log.SGT)
-        t1 = pd.Timestamp(end_d, tz=event_log.SGT) + pd.Timedelta(days=1)
-    elif RANGES[rng] is None:
-        t0, t1 = None, None
+    html(ui.section("Time range"))
+    rng = st.segmented_control("Preset", [k for k in RANGES if k != "Custom"], default="7 days", key="fleet_range",
+                               label_visibility="collapsed", width="stretch") or "7 days"
+    today = event_log.now().date()
+    if RANGES[rng] is None:
+        first = log["time"].min().date() if len(log) else today - pd.Timedelta(days=365)
+        preset_from, preset_to = first, today
+    elif rng == "Today":
+        preset_from, preset_to = today, today
     else:
-        t1 = pd.Timestamp(event_log.now())
-        t0 = t1.normalize() if rng == "Today" else t1 - pd.Timedelta(days=RANGES[rng])
+        preset_from, preset_to = today - pd.Timedelta(days=RANGES[rng]), today
+    d1, d2, d3 = st.columns([1, 1, 2])
+    with d1:
+        start_d = st.date_input("From", value=preset_from, key=f"fleet_from_{rng}", format="DD/MM/YYYY")
+    with d2:
+        end_d = st.date_input("To", value=preset_to, key=f"fleet_to_{rng}", format="DD/MM/YYYY")
+    with d3:
+        st.caption("Pick a preset, or edit the dates directly. Both ends are inclusive, Singapore time. "
+                   f"Log holds {len(log)} events" + (f", oldest {event_log.fmt_time(log['time'].min(), '%d %b %Y')}." if len(log) else "."))
+    t0 = pd.Timestamp(start_d, tz=event_log.SGT)
+    t1 = pd.Timestamp(end_d, tz=event_log.SGT) + pd.Timedelta(days=1)
 
     ev = log.copy()
-    if t0 is not None and len(ev):
+    if len(ev):
         ev = ev[(ev["time"] >= t0) & (ev["time"] < t1)]
     if lines and len(ev):
         ev = ev[ev["line"].isin(lines)]
@@ -948,14 +977,14 @@ def fleet_page() -> None:
         plot(charts.events_by_subsystem(ev))
 
     html(ui.section("Timeline"))
-    plot(charts.events_timeline(ev, "D" if (t0 is None or (t1 - t0) > pd.Timedelta(days=2)) else "h"))
+    plot(charts.events_timeline(ev, "D" if (t1 - t0) > pd.Timedelta(days=2) else "h"))
 
     html(ui.section("Events"))
     if len(ev):
         show = ev.head(200).copy()
         rows = "".join(
             f'<tr><td class="mono">{event_log.fmt_time(x.time)}</td><td>{quickdrop.SUBSYSTEM_EMOJI.get(x.subsystem, "")} {x.subsystem_name}</td>'
-            f'<td>{x.title}</td><td class="muted">{event_log.txt(x.detail, "")}</td><td class="muted">{event_log.txt(x.train)} · {event_log.txt(x.station).title()}</td>'
+            f'<td>{x.title}</td><td class="muted">{txt(x.detail, "")}</td><td class="muted">{txt(x.train)} · {txt(x.station).title()}</td>'
             f'<td>{ui.pill(x.state, ui.STATES[x.state][1])}</td></tr>'
             for x in show.head(25).itertuples())
         html(f'<div class="nw-panel"><table class="nw-table"><thead><tr><th>Time</th><th>Subsystem</th><th>Event</th>'
