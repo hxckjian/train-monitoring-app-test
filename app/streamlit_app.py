@@ -29,6 +29,7 @@ import insight  # noqa: E402
 import livemap  # noqa: E402
 from subsystems.generic import monitor  # noqa: E402
 from core import cache as result_cache  # noqa: E402
+from core import events as event_log  # noqa: E402
 from core.registry import DATA_ROOT, SUBSYSTEMS, SubsystemSpec  # noqa: E402
 from core.submission import SCHEMAS, build_predictions_zip, validate_submission  # noqa: E402
 from theme import T, css  # noqa: E402
@@ -84,9 +85,31 @@ def choose_input(spec: SubsystemSpec) -> list[tuple[str, bytes]] | None:
     return [(u.name, u.getvalue()) for u in ups]
 
 
+def context_panel(key: str) -> dict:
+    """Which train and where: attached to every event this run produces."""
+    with st.expander("Where did this data come from? (train and station, for the fleet log)"):
+        df = livemap.stations()
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            line = st.selectbox("Line", ["unknown"] + list(livemap.LINES), key=f"{key}_ctx_line",
+                                format_func=lambda k: LINE_NAMES.get(k, "Not known"))
+        with c2:
+            train = st.selectbox("Train set", ["unknown"] + (event_log.roster(line) if line != "unknown" else []),
+                                 key=f"{key}_ctx_train")
+        with c3:
+            names = [n for n in livemap.LINES[line][1] if n in set(df["key"])] if line != "unknown" else []
+            station = st.selectbox("Recorded near", ["unknown"] + names, key=f"{key}_ctx_station",
+                                   format_func=lambda k: k.title() if k != "unknown" else "Not known")
+        st.caption("The competition files carry no fleet metadata, so this is how an event gets a place on the "
+                   "map and a train in the roster. Leave it unknown and the event still goes in the log.")
+    return {"line": None if line == "unknown" else line, "train": None if train == "unknown" else train,
+            "station": None if station == "unknown" else station, "source": "run"}
+
+
 def run_panel(spec: SubsystemSpec, button: str):
     """Input + run button. Returns the stored result for this subsystem, if any."""
     payload = choose_input(spec)
+    ctx = context_panel(spec.key)
     if st.button(button, type="primary", disabled=payload is None, key=f"{spec.key}_run"):
         try:
             if spec.key in ("shm", "rail", "acv"):
@@ -102,6 +125,8 @@ def run_panel(spec: SubsystemSpec, button: str):
                 with st.spinner("Analysing..."):
                     res = spec.module.analyze(as_files(payload))
             st.session_state[f"{spec.key}_result"] = res
+            n = event_log.append(event_log.events_from_result(spec.key, res, ctx))
+            st.toast(f"{n} event(s) logged to the fleet log", icon="✅")
         except (ValueError, FileNotFoundError) as exc:
             st.session_state.pop(f"{spec.key}_result", None)
             html(ui.verdict("unknown", spec.name, "This input could not be assessed",
@@ -140,6 +165,10 @@ def session_results() -> dict:
         for k, v in cached.items():
             st.session_state[f"{k}_result"] = v
         st.session_state["_from_cache"] = bool(cached)
+        if cached and event_log.load().empty:
+            df = livemap.stations()
+            by_line = {code: [n for n in names if n in set(df["key"])] for code, (_, names) in livemap.LINES.items()}
+            event_log.seed_demo(cached, by_line)
     return {k: st.session_state.get(f"{k}_result") for k in SUBSYSTEMS}
 
 
@@ -245,22 +274,56 @@ def overview_page() -> None:
                       f' &nbsp;·&nbsp; blue discs = rain gauges')
             html(f'<div style="font-size:12px;color:var(--ink-secondary);margin-top:6px">{legend}{wl}</div>')
 
-    # ---- events table with filter pills
-    html(ui.section("Events"))
-    f1, f2 = st.columns([2, 3])
+    # ---- work queue: open faults, acknowledge / close like a maintenance system
+    html(ui.section("Work queue"))
+    log = event_log.with_status(event_log.load())
+    q = log[log["state"].isin(["alert", "watch"])] if len(log) else log
+    f1, f2, f3 = st.columns([1.6, 1.4, 2])
     with f1:
-        flt = st.segmented_control("Show", ["All", "Fault", "Watch"], default="All", key="ev_filter",
-                                   label_visibility="collapsed") or "All"
-    rows = [e for e in ev if flt == "All" or e["state"] == {"Fault": "alert", "Watch": "watch"}[flt]]
-    html(ui.event_table(insight.top_events(rows, 3) + [e for e in rows if e not in insight.top_events(rows, 3)][:9],
-                        "Run a subsystem, or press Run all. Every flagged cycle, file, recording and car lands here."))
-    if len(rows) > 12:
-        with st.expander(f"All {len(rows)} events"):
-            st.dataframe(pd.DataFrame(rows)[["severity", "state", "subsystem", "title", "detail"]],
-                         hide_index=True, width="stretch",
-                         column_config={"severity": st.column_config.ProgressColumn("Severity", min_value=0.0, max_value=1.0, format="%.2f")})
-    st.caption("The first three are the worst event of each subsystem; severity combines the model's confidence "
-               "with how far a value sits past its watch band, so subsystems can share one list.")
+        flt = st.segmented_control("Status", ["Open", "Acknowledged", "Closed", "All"], default="Open",
+                                   key="wq_filter", label_visibility="collapsed") or "Open"
+    with f2:
+        wq_sub = st.multiselect("Subsystem", list(event_log.SUBSYSTEM_NAME.values()), default=[],
+                                key="wq_sub", placeholder="All subsystems", label_visibility="collapsed")
+    rows = q if flt == "All" else q[q["status"] == flt.lower()]
+    if wq_sub is not None and len(wq_sub) and len(rows):
+        rows = rows[rows["subsystem_name"].isin(wq_sub)]
+    rows = rows.sort_values(["severity", "time"], ascending=[False, False]) if len(rows) else rows
+    with f3:
+        st.caption(f"{int((q['status'] == 'open').sum()) if len(q) else 0} open · "
+                   f"{int((q['status'] == 'acknowledged').sum()) if len(q) else 0} acknowledged · "
+                   f"{int((q['status'] == 'closed').sum()) if len(q) else 0} closed · from the fleet log")
+    if not len(rows):
+        html(ui.empty("Queue is clear", ["No faults or watches with this status. Run a subsystem page to add checks."]))
+    else:
+        for x in rows.head(8).itertuples():
+            c1, c2, c3 = st.columns([4.2, 1.1, 1.1])
+            with c1:
+                html(f'<div class="nw-panel" style="padding:12px 16px;margin-bottom:6px">'
+                     f'<div class="h" style="display:flex;gap:10px;align-items:center">{ui.pill(x.state, ui.STATES[x.state][1])}'
+                     f'<b>{x.title}</b><span class="mono" style="margin-left:auto;font-size:11px;color:var(--ink-muted)">'
+                     f'{pd.Timestamp(x.time).strftime("%d %b %H:%M")}</span></div>'
+                     f'<div class="muted" style="font-size:12px;margin-top:4px">{x.subsystem_name} · {x.train or "train not known"} · '
+                     f'{(x.station or "location not known").title()} · {x.detail}'
+                     + (f' · <i>{x.note}</i>' if x.note else "") + '</div></div>')
+            with c2:
+                if x.status == "open" and st.button("Acknowledge", key=f"ack_{x.id}", width="stretch"):
+                    event_log.set_status(x.id, "acknowledged")
+                    st.rerun()
+                elif x.status == "acknowledged":
+                    html(ui.pill("watch", "acknowledged"))
+                elif x.status == "closed":
+                    html(ui.pill("ok", "closed"))
+            with c3:
+                if x.status != "closed" and st.button("Close", key=f"close_{x.id}", width="stretch"):
+                    event_log.set_status(x.id, "closed", "closed from the dashboard")
+                    st.rerun()
+        if len(rows) > 8:
+            with st.expander(f"All {len(rows)} in this view"):
+                st.dataframe(rows[["time", "subsystem_name", "state", "status", "title", "train", "station", "detail"]],
+                             hide_index=True, width="stretch")
+    st.caption("Acknowledge when someone owns it, close when the inspection is done. Actions are kept beside the "
+               "log, so a re-run of the same file keeps its status. Open the Fleet view for the map and the roster.")
 
     # ---- deeper tabs
     tab_glance, tab_trends, tab_zones, tab_data = st.tabs(["Subsystems", "Trends", "Zones", "Training data"])
@@ -712,119 +775,176 @@ def acv_page() -> None:
 
 # ------------------------------------------------------------------ fleet
 
-def fleet_status() -> list[tuple[str, str, str, str]]:
-    """(state, name, headline, detail) per subsystem from whatever has been run."""
-    out = []
-    door = st.session_state.get("door_result")
-    if door and not door["cycles"].empty:
-        c = door["cycles"]
-        n_ab = int((c.prediction == "Abnormal resistance").sum())
-        out.append(("alert" if n_ab else "ok", "Door",
-                    f"{n_ab} of {len(c)} cycles abnormal" if n_ab else f"all {len(c)} cycles normal",
-                    "abnormal sustained motor current" if n_ab else "motor load in the normal band"))
-    else:
-        out.append(("unknown", "Door", "not assessed", "run the Door page"))
-    shm = st.session_state.get("shm_result")
-    if shm:
-        d = pd.DataFrame([{"file_id": x["file_id"], "damage": x["damage"]} for x in shm["files"]])
-        worst = d.loc[d.damage.idxmax()]
-        state = "alert" if worst.damage >= SHM_ALERT else "watch" if worst.damage >= SHM_WATCH else "ok"
-        out.append((state, "Structural health", f"highest damage {worst.damage:.2f} ({worst.file_id})",
-                    f"{len(d)} measurement point(s), D = 1 is end of fatigue life"))
-    else:
-        out.append(("unknown", "Structural health", "not assessed", "run the Structural health page"))
-    rail = st.session_state.get("rail_result")
-    if rail:
-        p = rail["predictions"]
-        n1, n2 = int((p.prediction == "Side I").sum()), int((p.prediction == "Side II").sum())
-        out.append(("alert" if n1 + n2 else "ok", "Rail corrugation",
-                    f"Side I {n1} · Side II {n2} of {len(p)} recordings" if n1 + n2 else f"{len(p)} recordings normal",
-                    "rail grinding candidate" if n1 + n2 else "no periodic wear signature"))
-    else:
-        out.append(("unknown", "Rail corrugation", "not assessed", "run the Rail page"))
-    acv = st.session_state.get("acv_result")
-    if acv:
-        f = acv["files"][0]
-        out.append(("watch", "Air conditioning", f"Car {f['ranking'][0]} most likely leaking",
-                    f"{f['file_id']} · runner-up Car {f['ranking'][1]}"))
-    else:
-        out.append(("unknown", "Air conditioning", "not assessed", "run the Air conditioning page"))
-    return out
-
-
 LINE_NAMES = {"NSL": "North–South (NSL)", "EWL": "East–West (EWL)", "NEL": "North East (NEL)",
               "CCL": "Circle (CCL)", "DTL": "Downtown (DTL)", "TEL": "Thomson–East Coast (TEL)"}
 
 
+RANGES = {"Today": 1, "7 days": 7, "30 days": 30, "All": None, "Custom": "custom"}
+
+
 def fleet_page() -> None:
-    html(ui.header("Fleet view", "Where the train is, what the models say",
-                   "The four verdicts from this session, placed on Singapore's rail network next "
-                   "to the live service status. Set the line and train the uploaded data came "
-                   "from; the map highlights that line in the colour of the worst verdict."))
-    board = fleet_status()
-    rank = {"alert": 3, "watch": 2, "ok": 1, "unknown": 0}
-    worst = max(board, key=lambda r: rank[r[0]])[0]
+    session_results()
+    html(ui.header("Fleet view", "What happened, where, and when",
+                   "Every verdict the models produce goes into one fleet log with a time, a train "
+                   "and a station. Filter it by time range, line, subsystem and state; the map "
+                   "shows where events cluster, the roster shows which trains need attention."))
+    log = event_log.load()
+    df = insight.with_zones(livemap.stations())
+    last = log["analysed_at"].max() if len(log) else None
 
-    c1, c2, c3 = st.columns([1, 1, 1.4], gap="medium")
-    with c1:
-        line = st.selectbox("Line", list(livemap.LINES), index=0, key="fleet_line",
-                            format_func=lambda k: LINE_NAMES[k])
-    with c2:
-        train = st.text_input("Train / set number", value="", placeholder="e.g. 3019", key="fleet_train")
-    with c3:
-        key = st.text_input("LTA DataMall AccountKey (optional, session only)", type="password",
-                            key="fleet_lta_key", help="Enables the official TrainServiceAlerts feed. "
-                            "Kept in this browser session only; never stored.")
+    # ---- filters
+    f1, f2, f3, f4, f5 = st.columns([1.5, 1.1, 1.2, 1.0, 1.4])
+    with f1:
+        rng = st.segmented_control("Time range", list(RANGES), default="7 days", key="fleet_range") or "7 days"
+    with f2:
+        lines = st.multiselect("Lines", list(livemap.LINES), default=[], key="fleet_lines",
+                               placeholder="All lines")
+    with f3:
+        subs = st.multiselect("Subsystems", list(event_log.SUBSYSTEM_NAME.values()), default=[],
+                              key="fleet_subs", placeholder="All subsystems")
+    with f4:
+        states = st.multiselect("State", ["Fault", "Watch", "Normal"], default=["Fault", "Watch"],
+                                key="fleet_states", placeholder="Any")
+    with f5:
+        key = st.text_input("LTA DataMall AccountKey", type="password", key="fleet_lta_key",
+                            placeholder="optional, session only",
+                            help="Register free at datamall.lta.gov.sg → My DataMall → request API access. The key "
+                                 "is sent as the AccountKey header, the same way as the curl example in the LTA guide. "
+                                 "Nothing is stored.")
+    if rng == "Custom":
+        d1, d2 = st.columns(2)
+        with d1:
+            start_d = st.date_input("From", value=event_log.now().date() - pd.Timedelta(days=7), key="fleet_from")
+        with d2:
+            end_d = st.date_input("To", value=event_log.now().date(), key="fleet_to")
+        t0 = pd.Timestamp(start_d, tz=event_log.SGT)
+        t1 = pd.Timestamp(end_d, tz=event_log.SGT) + pd.Timedelta(days=1)
+    elif RANGES[rng] is None:
+        t0, t1 = None, None
+    else:
+        t1 = pd.Timestamp(event_log.now())
+        t0 = t1.normalize() if rng == "Today" else t1 - pd.Timedelta(days=RANGES[rng])
 
-    left, right = st.columns([1.55, 1], gap="medium")
+    ev = log.copy()
+    if t0 is not None and len(ev):
+        ev = ev[(ev["time"] >= t0) & (ev["time"] < t1)]
+    if lines and len(ev):
+        ev = ev[ev["line"].isin(lines)]
+    if subs and len(ev):
+        ev = ev[ev["subsystem_name"].isin(subs)]
+    smap = {"Fault": "alert", "Watch": "watch", "Normal": "ok"}
+    if states and len(ev):
+        ev = ev[ev["state"].isin([smap[x] for x in states])]
+
+    n_faults = int((ev["state"] == "alert").sum()) if len(ev) else 0
+    n_trains = int(ev["train"].dropna().nunique()) if len(ev) else 0
+    n_stations = int(ev["station"].dropna().nunique()) if len(ev) else 0
+    html(ui.kpis([
+        ("Events in range", f"{len(ev)}", f"of {len(log)} logged · log updated {last.strftime('%d %b %H:%M') if last is not None else '—'}"),
+        ("Faults", f"{n_faults}", f"{int((ev['state'] == 'watch').sum()) if len(ev) else 0} on watch"),
+        ("Trains affected", f"{n_trains}", "sets with at least one event"),
+        ("Stations affected", f"{n_stations}", "places with at least one event"),
+    ]))
+    if len(log) and (log["source"] == "demo").any():
+        st.caption("Includes a demo fleet seeded from the competition test data: each result was assigned a train "
+                   "set and a station and replayed over the past week, so the filters have something to show. "
+                   "Your own runs are logged with the train and station you pick on the subsystem page.")
+
+    # ---- map + roster
+    left, right = st.columns([1.7, 1], gap="medium")
     with left:
-        html(ui.section("Network"))
-        df = livemap.stations()
+        html(ui.section("Where events cluster"))
+        weather = livemap.fetch_weather()
+        agg = insight.station_events(ev, df)
         if df.empty:
-            html(ui.empty("Station map unavailable",
-                          ["The PS2 station GeoJSON was not found in repo/PS2/data/. Re-clone the "
-                           "dataset (HANDOFF.md section 3) to restore it."]))
+            html(ui.empty("Station map unavailable", ["data/stations/AmendmenttoMP2014RailStation.geojson is missing."]))
         else:
-            st.pydeck_chart(livemap.deck(df, line, worst, f"train {train}" if train else "train"),
-                            height=520)
-            st.caption(f"{len(df)} station polygons from the PS2 Master Plan 2014 amendment file, "
-                       f"drawn at their centroids. Halo colour = worst verdict this session "
-                       f"({ui.STATES[worst][1]}).")
+            crowd = livemap.fetch_crowd(key, lines[0]) if (key and lines) else None
+            alerts = livemap.fetch_train_alerts(key) if key else None
+            deck = insight.fleet_deck(df, agg, lines, weather)
+            deck.layers = insight.crowd_layer(crowd, df) + insight.alert_layer(alerts, df) + deck.layers
+            st.pydeck_chart(deck, height=520)
+            if crowd is not None:
+                st.caption(("Platform crowd rings (DataMall PCDRealTime, 10-minute feed): green low, amber moderate, red high · "
+                            f"fetched {crowd.get('fetched_at')} SGT") if crowd.get("ok") else f"Crowd feed: {crowd.get('reason')}")
+            st.caption("Marker size = events at that station in range, colour = worst state, number = faults. "
+                       + (f"Weather layer: NEA readings at {weather.get('reading_time', '—')} SGT, fetched {weather.get('fetched_at')}."
+                          if weather.get("ok") else "Weather layer unavailable."))
     with right:
-        html(ui.section(f"This train · {line}{' · ' + train if train else ''}"))
-        for state, name, headline, detail in board:
-            html(ui.fleet_row(state, name, headline, detail))
+        html(ui.section("Train health · lowest first"))
+        hi = insight.health_index(ev)
+        if len(hi):
+            def cell(state):
+                return f'<span class="nw-cell {state}" title="{ui.STATES[state][1]}"></span>'
+            rows = "".join(
+                f'<tr><td><b>{x.train}</b><div class="muted">{x.line}</div></td>'
+                f'<td><div class="nw-health"><span style="width:{x.health:.0f}%" class="{"alert" if x.health < 60 else "watch" if x.health < 85 else "ok"}"></span></div>'
+                f'<span class="mono">{x.health:.0f}</span></td>'
+                f'<td class="cells">{cell(x.door)}{cell(x.shm)}{cell(x.rail)}{cell(x.acv)}</td>'
+                f'<td class="mono">{x.faults}/{x.events}</td>'
+                f'<td class="muted">{pd.Timestamp(x.last).strftime("%d %b %H:%M")}</td></tr>'
+                for x in hi.head(14).itertuples())
+            html(f'<div class="nw-panel"><table class="nw-table"><thead><tr><th>Train</th><th>Health</th>'
+                 f'<th title="Door · Structure · Rail · Air-con">D·S·R·A</th><th>Faults</th><th>Latest</th></tr></thead>'
+                 f'<tbody>{rows}</tbody></table>'
+                 f'<div class="muted" style="font-size:11px;margin-top:8px">Health index: 100 minus severity-weighted '
+                 f'faults and watches in range, floor 40. Cells: worst state per subsystem (Door, Structure, Rail, Air-con).</div></div>')
+        else:
+            html(ui.empty("No trains in range", ["Widen the time range, or run a subsystem page and pick the train."]))
+        html(ui.section("By subsystem"))
+        plot(charts.events_by_subsystem(ev))
 
+    html(ui.section("Timeline"))
+    plot(charts.events_timeline(ev, "D" if (t0 is None or (t1 - t0) > pd.Timedelta(days=2)) else "h"))
+
+    html(ui.section("Events"))
+    if len(ev):
+        show = ev.head(200).copy()
+        rows = "".join(
+            f'<tr><td class="mono">{pd.Timestamp(x.time).strftime("%d %b %H:%M")}</td><td>{x.subsystem_name}</td>'
+            f'<td>{x.title}</td><td class="muted">{x.detail}</td><td class="muted">{x.train or "—"} · {(x.station or "—").title()}</td>'
+            f'<td>{ui.pill(x.state, ui.STATES[x.state][1])}</td></tr>'
+            for x in show.head(25).itertuples())
+        html(f'<div class="nw-panel"><table class="nw-table"><thead><tr><th>Time</th><th>Subsystem</th><th>Event</th>'
+             f'<th>Evidence</th><th>Train · station</th><th>Status</th></tr></thead><tbody>{rows}</tbody></table></div>')
+        if len(ev) > 25:
+            with st.expander(f"All {len(ev)} events in range"):
+                st.dataframe(ev[["time", "subsystem_name", "state", "title", "detail", "train", "line", "station", "file_id"]],
+                             hide_index=True, width="stretch")
+        st.download_button("Download events in range (CSV)", ev.to_csv(index=False).encode(), "fleet_events.csv", "text/csv")
+    else:
+        html(ui.empty("No events in this range", ["Widen the filters, or run a subsystem page."]))
+
+    # ---- live status
     html(ui.section("Live service status"))
-    weather = livemap.fetch_weather()
     if weather.get("ok") and not df.empty:
-        sel = df[df["key"].isin(livemap.LINES[line][1])]
-        w = livemap.weather_near(weather, float(sel["lat"].mean()), float(sel["lon"].mean())) if not sel.empty else {}
-        html(ui.kpis([("Air temperature", f"{w.get('temp_c', float('nan')):.1f} °C", f"nearest NEA station: {w.get('station', '?')}"),
+        focus = df[df["key"].isin(livemap.LINES[lines[0]][1])] if lines else df
+        w = livemap.weather_near(weather, float(focus["lat"].mean()), float(focus["lon"].mean()))
+        html(ui.kpis([("Air temperature", f"{w.get('temp_c', float('nan')):.1f} °C", f"{w.get('station', '?')} · reading {weather.get('reading_time')} SGT"),
                       ("Rainfall, last 5 min", f"{w.get('rain_mm', 0):.1f} mm", "heavy rain slows the network and loads the doors"),
-                      ("2-hour forecast", f"{w.get('forecast', '—')}", f"{w.get('area', '')} · data.gov.sg, no key needed"),
-                      ("Heat load on air-con", "high" if (w.get('temp_c') or 0) >= 31 else "normal",
-                       "refrigerant leaks show first on hot afternoons")]))
+                      ("2-hour forecast", f"{w.get('forecast', '—')}", f"{w.get('area', '')} · NEA via data.gov.sg"),
+                      ("Heat load on air-con", "high" if (w.get('temp_c') or 0) >= 31 else "normal", "leaks show first on hot afternoons")]))
     a, b = st.columns(2, gap="medium")
     with a:
         st.markdown("**LTA DataMall · TrainServiceAlerts**")
         if not key:
-            st.caption("Enter an AccountKey above to read the official feed. Register free at "
-                       "datamall.lta.gov.sg. Without it, the SGMRT feed on the right still works.")
+            st.caption("This is the official disruption feed. It needs your own AccountKey (free at datamall.lta.gov.sg). "
+                       "Paste it in the field above; the app sends it as the `AccountKey` header exactly like the LTA "
+                       "curl example, and shows the result here with the time it was fetched.")
         else:
             al = livemap.fetch_train_alerts(key)
             if not al["ok"]:
                 html(ui.chip("unknown", "Feed unavailable", al["reason"]))
+                st.caption("A 401 means the key was rejected; check it was copied whole. DataMall keys can take a few minutes to activate.")
             elif al["status"] == 1 and not al["segments"]:
-                html(ui.chip("ok", "All lines running normally", "DataMall status 1"))
+                html(ui.chip("ok", "All lines running normally", f"DataMall status 1 · fetched {al['fetched_at']} SGT"))
             else:
-                html(ui.chip("alert", "Disruption reported", f"{len(al['segments'])} affected segment(s)"))
+                html(ui.chip("alert", "Disruption reported", f"{len(al['segments'])} affected segment(s) · fetched {al['fetched_at']} SGT"))
                 for seg in al["segments"]:
-                    mine = str(seg.get("Line", "")).upper() == line
-                    st.markdown(("🔴 **Affects your line** · " if mine else "") +
-                                f"**{seg.get('Line', '?')}** {seg.get('Direction', '')} · stations "
-                                f"{seg.get('Stations', '?')} · free bus: {seg.get('FreePublicBus', '-')}"
-                                f" · shuttle: {seg.get('FreeMRTShuttle', '-')}")
+                    mine = str(seg.get("Line", "")).upper() in lines
+                    st.markdown(("🔴 **On a selected line** · " if mine else "") +
+                                f"**{seg.get('Line', '?')}** {seg.get('Direction', '')} · {', '.join(n.title() for n in seg.get('StationNames', [])) or seg.get('Stations', '?')} · "
+                                f"free bus: {seg.get('FreePublicBus', '-')} · shuttle: {seg.get('FreeMRTShuttle', '-')}")
                 for m in al["messages"]:
                     st.caption(m)
             if st.button("Refresh DataMall", key="fleet_refresh_lta"):
@@ -838,19 +958,31 @@ def fleet_page() -> None:
         elif not feed["posts"]:
             st.caption("No posts parsed.")
         else:
-            hits = [p for p in feed["posts"] if livemap.line_mentioned(p["text"], line)]
+            hits = [p for p in feed["posts"] if any(livemap.line_mentioned(p["text"], ln) for ln in (lines or livemap.LINES))]
             html(ui.chip("watch" if hits else "ok",
-                         f"{len(hits)} recent post(s) mention {line}" if hits else f"no recent post mentions {line}",
-                         "community reports, unverified"))
+                         f"{len(hits)} recent post(s) mention {'the selected lines' if lines else 'a line'}" if hits else "no recent line mentions",
+                         f"community reports, unverified · fetched {feed.get('fetched_at')} SGT"))
             for p in feed["posts"]:
                 when = "" if pd.isna(p["time"]) else p["time"].tz_convert("Asia/Singapore").strftime("%d %b %H:%M")
-                mark = "🔴 " if livemap.line_mentioned(p["text"], line) else ""
+                mark = "🔴 " if any(livemap.line_mentioned(p["text"], ln) for ln in (lines or livemap.LINES)) else ""
                 st.markdown(f"{mark}`{when}` {p['text'][:280]}{'…' if len(p['text']) > 280 else ''}")
         if st.button("Refresh feed", key="fleet_refresh_tg"):
             livemap.fetch_sgmrt.clear()
             st.rerun()
-    st.caption("Live feeds are context for the maintenance decision, not inputs to any model: "
-               "every verdict above comes only from the uploaded sensor data.")
+    st.caption("Live feeds are context for the maintenance decision, not inputs to any model: every event in the log "
+               "comes from the uploaded sensor data.")
+    with st.expander("Log maintenance"):
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("Re-seed the demo fleet from the cached run", key="fleet_seed"):
+                cached = result_cache.load() or {}
+                by_line = {code: [n for n in names if n in set(df["key"])] for code, (_, names) in livemap.LINES.items()}
+                st.toast(f"{event_log.seed_demo(cached, by_line)} demo events written")
+                st.rerun()
+        with c2:
+            if st.button("Remove demo events (keep my runs)", key="fleet_clear_demo"):
+                event_log.clear("demo")
+                st.rerun()
 
 
 def validation_page() -> None:
@@ -970,7 +1102,7 @@ def validation_page() -> None:
 
 
 def custom_page() -> None:
-    html(ui.header("Extend", "Parameter monitor",
+    html(ui.header("New data", "Screen a dataset that has no model yet",
                    "Screen a new parameter before it has labels. Upload any sensor export, point at the "
                    "columns, and get the same label-free peer comparison the air-conditioning model "
                    "uses, or a robust drift score for a single series. When labels arrive, promote it "
@@ -1200,8 +1332,8 @@ pages = {
         st.Page(rail_page, title="Rail", icon=":material/train:", url_path="rail"),
         st.Page(acv_page, title="Air conditioning", icon=":material/ac_unit:", url_path="acv"),
     ],
-    "Extend": [
-        st.Page(custom_page, title="Parameter monitor", icon=":material/add_chart:", url_path="monitor"),
+    "New data": [
+        st.Page(custom_page, title="Screen a new dataset", icon=":material/add_chart:", url_path="monitor"),
     ],
     "Evidence": [
         st.Page(validation_page, title="Validation", icon=":material/fact_check:", url_path="validation"),

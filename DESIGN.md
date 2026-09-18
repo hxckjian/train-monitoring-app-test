@@ -88,3 +88,24 @@ written before the run and a null result is kept as a null result.
 - Apple Human Interface Guidelines, design principles: https://developer.apple.com/design/human-interface-guidelines/design-principles
 - Progressive disclosure: https://en.wikipedia.org/wiki/Progressive_disclosure
 - Condition monitoring of railway infrastructure (review): https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10857274/
+
+## 7. What the fleet products do, and what this console took from them
+
+A short review of the commercial fleet-health platforms, and the features adopted.
+
+| Product | Idea | Adopted here |
+|---|---|---|
+| Alstom HealthHub ([source](https://www.alstom.com/press-releases-news/2023/2/healthhub-intelligent-way-improve-maintenance)) | one real-time fleet board, drill-down per asset, predicts component failures to raise availability | Dashboard → Fleet view → subsystem page ladder; SHM remaining-life forecast |
+| Siemens Railigent X ([source](https://www.siemens.com/en-us/company/insights/rxx-ai/)) | health states per bogie, one dashboard for fleet and depot across a region | health index per train with a Door/Structure/Rail/Air-con cell strip; zones on the map |
+| Hitachi Rail with Perpetuum ([source](https://railway-news.com/hitachi-rail-completes-acquisition-of-perpetuum/)) | on-board sensor data turned into maintenance work, availability and reliability | every verdict becomes a logged event with time, train and place; work queue with acknowledge / close |
+| Predictive-maintenance practice ([source](https://railwayacademy.org/digital-transformation-in-rolling-stock-maintenance-from-reactive-to-predictive/)) | move from reactive to condition-based maintenance: alarms with ownership, trends, thresholds | open / acknowledged / closed workflow, time-range trends, watch and alert bands stated on screen |
+| Commuter-facing SG apps on DataMall ([sg-rail-crowd](https://github.com/cheeaun/sg-rail-crowd), [MRTracker](https://github.com/umiyuikaiteitan/Singapore-MRTracker)) | live platform crowd density and service alerts drawn on the network | DataMall PCDRealTime crowd rings and TrainServiceAlerts station rings on the fleet map, given the user's AccountKey |
+
+The one idea deliberately not copied is a single opaque "AI health score" with no
+trail. The health index here is an arithmetic of logged events, each of which
+links back to the file, the verdict and the model card that produced it.
+
+**"New data" menu.** The parameter-monitor page is the on-ramp for a subsystem
+that has no model yet: the same peer-comparison and robust-drift screens the
+validated models rest on, applied to any export, with the recipe for promoting
+it to a full subsystem once labels exist.

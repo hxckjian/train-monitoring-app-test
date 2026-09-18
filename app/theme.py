@@ -192,6 +192,12 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 .nw-hero {{ display:flex; align-items:center; gap:10px; margin:0 0 10px; }}
 .nw-hero .n {{ font-family:var(--font-mono); font-size:22px; font-weight:500; background:var(--surface-card); border:1px solid var(--line-hairline); border-radius:999px; padding:6px 16px; }}
 
+.nw-health {{ display:inline-block; width:64px; height:8px; background:var(--surface-sunken); border-radius:999px; overflow:hidden; vertical-align:middle; margin-right:8px; }}
+.nw-health span {{ display:block; height:100%; border-radius:999px; }}
+.nw-health .ok {{ background:var(--status-ok); }} .nw-health .watch {{ background:var(--status-watch); }} .nw-health .alert {{ background:var(--status-alert); }}
+.nw-cell {{ display:inline-block; width:14px; height:14px; border-radius:3px; margin-right:3px; background:var(--surface-sunken); }}
+.nw-cell.ok {{ background:var(--status-ok); }} .nw-cell.watch {{ background:var(--status-watch); }} .nw-cell.alert {{ background:var(--status-alert); }}
+
 /* ---- streamlit widget polish ---- */
 .stButton > button, .stDownloadButton > button {{ border-radius: var(--radius-md); font-weight: 600;
   border: 1px solid var(--line-control); }}

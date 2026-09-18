@@ -32,53 +32,13 @@ GEOJSON_CANDIDATES = [
 LTA_ALERTS_URL = "https://datamall2.mytransport.sg/ltaodataservice/TrainServiceAlerts"
 SGMRT_URL = "https://t.me/s/sgmrt"
 
-# Line -> (official colour, stations as they are named in the GeoJSON after cleaning).
-# Names that the 2014 amendment file does not carry simply do not highlight.
-LINES: dict[str, tuple[str, list[str]]] = {
-    "NSL": ("#d42e12", [
-        "JURONG EAST", "BUKIT BATOK", "BUKIT GOMBAK", "CHOA CHU KANG", "YEW TEE", "KRANJI",
-        "MARSILING", "WOODLANDS", "ADMIRALTY", "SEMBAWANG", "YISHUN", "KHATIB", "YIO CHU KANG",
-        "ANG MO KIO", "BISHAN", "BRADDELL", "TOA PAYOH", "NOVENA", "NEWTON", "ORCHARD",
-        "SOMERSET", "DHOBY GHAUT", "CITY HALL", "RAFFLES PLACE", "MARINA BAY"]),
-    "EWL": ("#009645", [
-        "PASIR RIS", "TAMPINES", "SIMEI", "TANAH MERAH", "BEDOK", "KEMBANGAN", "EUNOS",
-        "PAYA LEBAR", "ALJUNIED", "KALLANG", "LAVENDER", "BUGIS", "CITY HALL", "RAFFLES PLACE",
-        "TANJONG PAGAR", "OUTRAM PARK", "TIONG BAHRU", "REDHILL", "QUEENSTOWN", "COMMONWEALTH",
-        "BUONA VISTA", "DOVER", "CLEMENTI", "JURONG EAST", "CHINESE GARDEN", "LAKESIDE",
-        "BOON LAY", "PIONEER", "JOO KOON", "GUL CIRCLE", "TUAS CRESCENT", "TUAS WEST ROAD",
-        "TUAS LINK", "EXPO", "CHANGI AIRPORT"]),
-    "NEL": ("#9900aa", [
-        "HARBOURFRONT", "OUTRAM PARK", "CHINATOWN", "CLARKE QUAY", "DHOBY GHAUT", "LITTLE INDIA",
-        "FARRER PARK", "BOON KENG", "POTONG PASIR", "WOODLEIGH", "SERANGOON", "KOVAN", "HOUGANG",
-        "BUANGKOK", "SENGKANG", "PUNGGOL"]),
-    "CCL": ("#fa9e0d", [
-        "DHOBY GHAUT", "BRAS BASAH", "ESPLANADE", "PROMENADE", "NICOLL HIGHWAY", "STADIUM",
-        "MOUNTBATTEN", "DAKOTA", "PAYA LEBAR", "MACPHERSON", "TAI SENG", "BARTLEY", "SERANGOON",
-        "LORONG CHUAN", "BISHAN", "MARYMOUNT", "CALDECOTT", "BOTANIC GARDENS", "FARRER ROAD",
-        "HOLLAND VILLAGE", "BUONA VISTA", "ONE NORTH", "KENT RIDGE", "HAW PAR VILLA",
-        "PASIR PANJANG", "LABRADOR PARK", "TELOK BLANGAH", "HARBOURFRONT", "BAYFRONT",
-        "MARINA BAY"]),
-    "DTL": ("#005ec4", [
-        "BUKIT PANJANG", "CASHEW", "HILLVIEW", "BEAUTY WORLD", "KING ALBERT PARK", "SIXTH AVENUE",
-        "TAN KAH KEE", "BOTANIC GARDENS", "STEVENS", "NEWTON", "LITTLE INDIA", "ROCHOR", "BUGIS",
-        "PROMENADE", "BAYFRONT", "DOWNTOWN", "TELOK AYER", "CHINATOWN", "FORT CANNING",
-        "BENCOOLEN", "JALAN BESAR", "BENDEMEER", "GEYLANG BAHRU", "MATTAR", "MACPHERSON", "UBI",
-        "KAKI BUKIT", "BEDOK NORTH", "BEDOK RESERVOIR", "TAMPINES WEST", "TAMPINES",
-        "TAMPINES EAST", "UPPER CHANGI", "EXPO"]),
-    "TEL": ("#9d5b25", [
-        "WOODLANDS", "SPRINGLEAF", "LENTOR", "MAYFLOWER", "BRIGHT HILL", "UPPER THOMSON",
-        "CALDECOTT", "STEVENS", "NAPIER", "ORCHARD", "GREAT WORLD", "HAVELOCK", "OUTRAM PARK",
-        "SHENTON WAY", "MARINA BAY"]),
-}
-# Drawing order. A line with a branch is drawn as separate paths, otherwise the
-# path would jump from the end of the main line back to the branch and cut
-# straight across the island (the EWL Changi branch and the CCL Marina Bay spur).
-BRANCHES: dict[str, list[list[str]]] = {
-    "EWL": [[n for n in LINES["EWL"][1] if n not in ("EXPO", "CHANGI AIRPORT")],
-            ["TANAH MERAH", "EXPO", "CHANGI AIRPORT"]],
-    "CCL": [[n for n in LINES["CCL"][1] if n not in ("BAYFRONT", "MARINA BAY")],
-            ["PROMENADE", "BAYFRONT", "MARINA BAY"]],
-}
+from network import LINE_HEX, SEGMENTS, codes_to_names, stations_of  # noqa: E402
+
+# Line -> (official colour, station names in running order). Derived from the
+# station-code table in network.py so DataMall codes and GeoJSON names agree.
+LINES: dict[str, tuple[str, list[str]]] = {code: (LINE_HEX[code], stations_of(code)) for code in SEGMENTS}
+# Drawable paths per line (branches separate, so a path never jumps across the island).
+BRANCHES: dict[str, list[list[str]]] = {code: [[name for _, name in seg] for seg in segs] for code, segs in SEGMENTS.items()}
 TYPE_COLOR = {"MRT": [110, 120, 135], "LRT": [160, 168, 180], "CCL": [110, 120, 135]}
 WEATHER_API = "https://api-open.data.gov.sg/v2/real-time/api"
 STATE_RGB = {"ok": [31, 143, 92], "watch": [214, 138, 0], "alert": [214, 40, 40],
@@ -168,9 +128,43 @@ def fetch_train_alerts(account_key: str) -> dict:
         status = int(v.get("Status", 1) or 1)
         segs = v.get("AffectedSegments", []) or []
         msgs = [m.get("Content", "") for m in (v.get("Message", []) or []) if isinstance(m, dict)]
-        return {"ok": True, "status": status, "segments": segs, "messages": msgs}
+        for seg in segs:
+            seg["StationNames"] = codes_to_names(str(seg.get("Stations", "")))
+        return {"ok": True, "status": status, "segments": segs, "messages": msgs,
+                "fetched_at": pd.Timestamp.now(tz="Asia/Singapore").strftime("%d %b %H:%M")}
     except Exception as exc:  # network, JSON, timeout - all become one line of text
         return {"ok": False, "reason": f"could not reach DataMall ({type(exc).__name__})"}
+
+
+CROWD_URL = "https://datamall2.mytransport.sg/ltaodataservice/PCDRealTime"
+CROWD_LINE_PARAM = {"NSL": ["NSL"], "EWL": ["EWL", "CGL"], "NEL": ["NEL"], "CCL": ["CCL", "CEL"], "DTL": ["DTL"], "TEL": ["TEL"]}
+CROWD_RGB = {"l": [22, 169, 122], "m": [184, 136, 15], "h": [224, 67, 79]}
+CROWD_WORD = {"l": "low", "m": "moderate", "h": "high"}
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_crowd(account_key: str, line: str) -> dict:
+    """Real-time platform crowd density per station (DataMall PCDRealTime, 10-minute
+    refresh). Returns {'ok', 'rows': DataFrame(code, name, level)}; never raises."""
+    if not account_key:
+        return {"ok": False, "reason": "no AccountKey entered", "rows": pd.DataFrame()}
+    try:
+        import requests
+        rows = []
+        for param in CROWD_LINE_PARAM.get(line, [line]):
+            r = requests.get(CROWD_URL, params={"TrainLine": param},
+                             headers={"AccountKey": account_key, "accept": "application/json"}, timeout=8)
+            if r.status_code != 200:
+                return {"ok": False, "reason": f"DataMall answered HTTP {r.status_code}", "rows": pd.DataFrame()}
+            for v in r.json().get("value", []) or []:
+                code = str(v.get("Station", "")).strip()
+                rows.append({"code": code, "name": codes_to_names([code])[0] if codes_to_names([code]) else code,
+                             "level": str(v.get("CrowdLevel", "")).lower()[:1],
+                             "start": v.get("StartTime"), "end": v.get("EndTime")})
+        return {"ok": True, "rows": pd.DataFrame(rows),
+                "fetched_at": pd.Timestamp.now(tz="Asia/Singapore").strftime("%d %b %H:%M")}
+    except Exception as exc:
+        return {"ok": False, "reason": f"could not reach DataMall ({type(exc).__name__})", "rows": pd.DataFrame()}
 
 
 _MSG = re.compile(r'tgme_widget_message_text[^>]*>(.*?)</div>', re.S)
@@ -197,7 +191,7 @@ def fetch_sgmrt(limit: int = 8) -> dict:
             if text:
                 posts.append({"time": when, "text": text})
         posts = posts[-limit:][::-1]
-        return {"ok": True, "posts": posts}
+        return {"ok": True, "posts": posts, "fetched_at": pd.Timestamp.now(tz="Asia/Singapore").strftime("%d %b %H:%M")}
     except Exception as exc:
         return {"ok": False, "reason": f"could not reach t.me ({type(exc).__name__})", "posts": []}
 
@@ -238,6 +232,9 @@ def fetch_weather() -> dict:
                                for f in items[0].get("forecasts", [])])
             out["forecast_valid"] = items[0].get("valid_period", {})
         out["stations"], out["forecast"] = stations, fc
+        out["fetched_at"] = pd.Timestamp.now(tz="Asia/Singapore").strftime("%d %b %H:%M")
+        t = out.get("air-temperature_time")
+        out["reading_time"] = pd.Timestamp(t).tz_convert("Asia/Singapore").strftime("%d %b %H:%M") if t else "—"
         return out
     except Exception as exc:
         return {"ok": False, "reason": f"could not reach data.gov.sg ({type(exc).__name__})",

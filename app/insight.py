@@ -243,3 +243,127 @@ def fleet_state(results: dict) -> dict[str, str]:
             if e["state"] == "alert":
                 st["acv"] = "alert"
     return st
+
+
+# ------------------------------------------------------------------ event log on the map
+
+def station_events(ev: pd.DataFrame, stations_df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate logged events per station: count, worst state, faults, latest time."""
+    if ev.empty or stations_df.empty:
+        return pd.DataFrame(columns=["station", "lat", "lon", "n", "faults", "worst", "last"])
+    rank = {"alert": 3, "watch": 2, "ok": 1, "unknown": 0}
+    e = ev.dropna(subset=["station"]).copy()
+    if e.empty:
+        return pd.DataFrame(columns=["station", "lat", "lon", "n", "faults", "worst", "last"])
+    lookup = stations_df.drop_duplicates("key").set_index("key")
+    e["key"] = e["station"].astype(str).str.upper()
+    e = e[e["key"].isin(lookup.index)]
+    g = e.groupby("key").agg(n=("state", "size"),
+                             faults=("state", lambda s: int((s == "alert").sum())),
+                             worst=("state", lambda s: max(s, key=lambda x: rank.get(x, 0))),
+                             last=("time", "max")).reset_index()
+    g["station"] = [lookup.loc[k, "name"] for k in g["key"]]
+    g["lat"] = [float(lookup.loc[k, "lat"]) for k in g["key"]]
+    g["lon"] = [float(lookup.loc[k, "lon"]) for k in g["key"]]
+    return g
+
+
+def event_layers(agg: pd.DataFrame) -> list:
+    if agg.empty:
+        return []
+    d = agg.copy()
+    d["color"] = [STATE_RGB.get(w, STATE_RGB["unknown"]) + [200] for w in d["worst"]]
+    d["radius"] = 220 + 60 * d["n"].clip(0, 20)
+    d["label"] = [f"{s}: {n} event(s), {f} fault(s), latest {pd.Timestamp(t).strftime('%d %b %H:%M')}"
+                  for s, n, f, t in zip(d["station"], d["n"], d["faults"], d["last"])]
+    d["text"] = d["faults"].astype(str)
+    return [pdk.Layer("ScatterplotLayer", data=d, get_position="[lon, lat]", get_fill_color="color",
+                      get_radius="radius", pickable=True, stroked=True, get_line_color=[255, 255, 255, 180],
+                      line_width_min_pixels=1),
+            pdk.Layer("TextLayer", data=d[d["faults"] > 0], get_position="[lon, lat]", get_text="text",
+                      get_size=12, get_color=[255, 255, 255], get_text_anchor='"middle"',
+                      get_alignment_baseline='"center"')]
+
+
+def fleet_deck(df: pd.DataFrame, agg: pd.DataFrame, lines: list[str], weather: dict | None = None) -> pdk.Deck:
+    """Line paths for the selected lines, event markers per station, weather underneath."""
+    d = df.copy()
+    d["color"] = [TYPE_COLOR.get(t, TYPE_COLOR["MRT"]) for t in d["type"]]
+    layers = weather_layers(weather)
+    paths = [p for p in line_paths(d) if not lines or p["line"] in lines]
+    if paths:
+        layers.append(pdk.Layer("PathLayer", data=paths, get_path="path", get_color="color",
+                                width_min_pixels=3, get_width=60, opacity=0.8))
+    d["label"] = ""
+    layers.append(pdk.Layer("ScatterplotLayer", data=d, get_position="[lon, lat]", get_fill_color="color",
+                            get_radius=90, pickable=True, opacity=0.7))
+    layers += event_layers(agg)
+    if not agg.empty:
+        view = pdk.ViewState(latitude=float(agg["lat"].mean()), longitude=float(agg["lon"].mean()), zoom=10.8)
+    else:
+        view = pdk.ViewState(latitude=1.352, longitude=103.82, zoom=10.7)
+    tooltip = {"html": "<b>{name}{station}</b><br/>{label}{zone} {type}<br/>{lines}",
+               "style": {"backgroundColor": "#10151c", "color": "#f7f8fa", "fontSize": "12px"}}
+    return pdk.Deck(layers=layers, initial_view_state=view, tooltip=tooltip,
+                    map_provider="carto", map_style="dark")
+
+
+def crowd_layer(crowd: dict | None, stations_df: pd.DataFrame) -> list:
+    """Platform crowd density as coloured rings around stations (DataMall PCDRealTime)."""
+    from livemap import CROWD_RGB, CROWD_WORD
+    if not crowd or not crowd.get("ok") or crowd["rows"].empty or stations_df.empty:
+        return []
+    lookup = stations_df.drop_duplicates("key").set_index("key")
+    d = crowd["rows"][crowd["rows"]["name"].isin(lookup.index)].copy()
+    if d.empty:
+        return []
+    d["lat"] = [float(lookup.loc[n, "lat"]) for n in d["name"]]
+    d["lon"] = [float(lookup.loc[n, "lon"]) for n in d["name"]]
+    d["color"] = [CROWD_RGB.get(lv, [120, 120, 120]) + [90] for lv in d["level"]]
+    d["radius"] = [320 if lv == "h" else 240 if lv == "m" else 170 for lv in d["level"]]
+    d["label"] = [f"{c} crowd {CROWD_WORD.get(lv, '?')}" for c, lv in zip(d["code"], d["level"])]
+    d["name"] = d["name"].str.title()
+    return [pdk.Layer("ScatterplotLayer", data=d, get_position="[lon, lat]", get_fill_color="color",
+                      get_radius="radius", pickable=True, stroked=True, get_line_color=[255, 255, 255, 120],
+                      line_width_min_pixels=1)]
+
+
+def alert_layer(alerts: dict | None, stations_df: pd.DataFrame) -> list:
+    """Stations named in live TrainServiceAlerts segments, as red rings."""
+    if not alerts or not alerts.get("ok") or stations_df.empty:
+        return []
+    names = {n for seg in alerts.get("segments", []) for n in seg.get("StationNames", [])}
+    if not names:
+        return []
+    d = stations_df[stations_df["key"].isin(names)].copy()
+    d["label"] = " · service disruption"
+    return [pdk.Layer("ScatterplotLayer", data=d, get_position="[lon, lat]", get_fill_color=[224, 67, 79, 60],
+                      get_radius=650, pickable=True, stroked=True, get_line_color=[224, 67, 79, 220],
+                      line_width_min_pixels=2)]
+
+
+# ------------------------------------------------------------------ fleet health index
+
+WEIGHT = {"alert": 1.0, "watch": 0.4, "ok": 0.0, "unknown": 0.0}
+
+
+def health_index(ev: pd.DataFrame) -> pd.DataFrame:
+    """One row per train: a 0-100 health index and the worst state per subsystem.
+    Index = 100 minus severity-weighted faults, saturating at 40 so one bad train
+    still sorts below a train with two watches; the shape follows fleet-health
+    products (a single score per asset, drill-down by subsystem)."""
+    cols = ["train", "line", "health", "events", "faults", "door", "shm", "rail", "acv", "last"]
+    if ev.empty or ev["train"].notna().sum() == 0:
+        return pd.DataFrame(columns=cols)
+    e = ev.dropna(subset=["train"]).copy()
+    rank = {"alert": 3, "watch": 2, "ok": 1, "unknown": 0}
+    rows = []
+    for train, g in e.groupby("train"):
+        penalty = sum(WEIGHT[s] * (10 + 20 * float(sv)) for s, sv in zip(g["state"], g["severity"]))
+        r = {"train": train, "line": g["line"].iloc[0], "health": max(40.0, 100.0 - penalty),
+             "events": int(len(g)), "faults": int((g["state"] == "alert").sum()), "last": g["time"].max()}
+        for k in ("door", "shm", "rail", "acv"):
+            sub = g[g["subsystem"] == k]
+            r[k] = max(sub["state"], key=lambda x: rank.get(x, 0)) if len(sub) else "unknown"
+        rows.append(r)
+    return pd.DataFrame(rows, columns=cols).sort_values(["health", "last"], ascending=[True, False]).reset_index(drop=True)

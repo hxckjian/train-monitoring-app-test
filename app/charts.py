@@ -466,3 +466,42 @@ def door_trend_compact(g: pd.DataFrame) -> go.Figure:
     fig.update_xaxes(title="minutes")
     fig.update_yaxes(title="mA", rangemode="tozero")
     return _base(fig, 200, legend=False)
+
+
+# ----------------------------------------------------------- event log
+
+STATE_COLOR = {"alert": "status-alert", "watch": "status-watch", "ok": "status-ok", "unknown": "status-unknown"}
+
+
+def events_timeline(ev: pd.DataFrame, freq: str = "D") -> go.Figure:
+    fig = go.Figure()
+    if ev.empty:
+        return _base(fig, 220, legend=False)
+    e = ev.copy()
+    e["bucket"] = e["time"].dt.floor(freq)
+    g = e.groupby(["bucket", "state"]).size().unstack(fill_value=0)
+    for state in ("ok", "watch", "alert"):
+        if state in g:
+            fig.add_trace(go.Bar(x=g.index, y=g[state], name={"ok": "Normal", "watch": "Watch", "alert": "Fault"}[state],
+                                 marker=dict(color=T(STATE_COLOR[state]), line=dict(width=0)),
+                                 hovertemplate="%{x|%d %b %H:%M}<br>%{y} " + state + "<extra></extra>"))
+    fig.update_layout(barmode="stack")
+    fig.update_yaxes(title="events")
+    return _base(fig, 240)
+
+
+def events_by_subsystem(ev: pd.DataFrame) -> go.Figure:
+    fig = go.Figure()
+    if ev.empty:
+        return _base(fig, 220, legend=False)
+    g = ev.groupby(["subsystem_name", "state"]).size().unstack(fill_value=0)
+    for state in ("ok", "watch", "alert"):
+        if state in g:
+            fig.add_trace(go.Bar(y=g.index, x=g[state], orientation="h",
+                                 name={"ok": "Normal", "watch": "Watch", "alert": "Fault"}[state],
+                                 marker=dict(color=T(STATE_COLOR[state]), line=dict(width=0)),
+                                 hovertemplate="%{y}: %{x} " + state + "<extra></extra>"))
+    fig.update_layout(barmode="stack")
+    fig.update_xaxes(title="events")
+    fig.update_yaxes(showgrid=False)
+    return _base(fig, 220)

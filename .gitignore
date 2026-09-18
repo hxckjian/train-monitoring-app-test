@@ -30,3 +30,5 @@ artifacts_cache/
 
 # derived dashboard cache, rebuilt by scripts/build_predictions.py
 predictions/analysis_cache.pkl
+data/events.jsonl
+data/event_actions.jsonl
