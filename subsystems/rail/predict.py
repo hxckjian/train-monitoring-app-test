@@ -24,6 +24,7 @@ from .features import (
     LABELS, SAMPLE_RATE_HZ, _SENSOR_RE, clean_data, extract_features, load_input,
 )
 from .wavelength import wavelength_features
+from core import drift as _drift
 
 MODULE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = MODULE_DIR / "artifacts" / "model.joblib"
@@ -134,6 +135,7 @@ def _process(f: Any, artifact: dict, evidence: bool) -> dict:
         raise ValueError(f"{name}: {exc}") from exc
     out = {"file_id": name, "prediction": label, "proba": proba}
     if evidence:
+        out["drift"] = _drift.score("rail", x.iloc[0])
         data = clean_data(frame)
         speed = speed_from_pulses(data[:, 0])
         ev = _evidence(frame, data)

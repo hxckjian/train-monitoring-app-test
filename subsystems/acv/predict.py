@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import joblib
+from core import drift as _drift
 import numpy as np
 import pandas as pd
 
@@ -105,7 +106,8 @@ def _process(f: Any, artifact: dict, evidence: bool) -> dict:
            "unobserved": list(x.attrs["unobserved"]),
            "peer_mean": {c: float(v) for c, v in feats["peer_mean"].items()},
            "hot_fraction": {c: float(v) for c, v in feats["peer_hot_fraction"].items()},
-           "rule": artifact.get("rule", "peer_mean")}
+           "rule": artifact.get("rule", "peer_mean"),
+           "drift": _drift.summarise([_drift.score("acv", feats.loc[c]) for c in feats.index])}
     if evidence:
         temps, targets = _cooling_temperatures(frame, cars)
         times = pd.to_datetime(frame["Time"], errors="coerce")

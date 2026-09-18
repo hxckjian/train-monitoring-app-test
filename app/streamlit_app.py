@@ -160,6 +160,23 @@ def view_toggle() -> None:
                    "Theme follows your system unless you pick one. Both settings stay as you move between pages.")
 
 
+def drift_chip(res: dict, key: str) -> None:
+    """One line on how far this data sits from what the model was validated on."""
+    from core import drift as _dr
+    if key == "door":
+        d = res.get("drift")
+    else:
+        d = _dr.summarise([f.get("drift") for f in res["files"]])
+    if not d:
+        return
+    state = {"low": "ok", "moderate": "watch", "high": "alert"}[d["level"]]
+    word = {"low": "Data looks like the training data", "moderate": "Data drifts from the training data",
+            "high": "Data far from the training data"}[d["level"]]
+    html(ui.chip(state, word, f"{d['score']:.0%} of features beyond 3 MAD"
+                 + (f" · {d['high_files']} file(s) high" if d.get("high_files") else "")
+                 + " · verdicts carry less certainty as drift rises"))
+
+
 def how_to_read(key: str) -> None:
     g = decisions.GLOSSARY[key]
     with st.expander("How to read this (for someone new to the data)"):
@@ -254,6 +271,8 @@ def run_panel(spec: SubsystemSpec, button: str):
                 with st.spinner("Analysing..."):
                     res = spec.module.analyze(as_files(payload))
             st.session_state[f"{spec.key}_result"] = res
+            for name, data in payload:
+                event_log.store_upload(ctx.get("dataset"), name, data)
             added, skipped = event_log.append_unique(event_log.events_from_result(spec.key, res, ctx))
             st.toast(f"{added} new event(s) logged"
                      + (f", {skipped} already in the log (same file, same verdicts)" if skipped else ""), icon="✅")
@@ -449,8 +468,11 @@ def overview_page() -> None:
                     try:
                         res = SUBSYSTEMS[k].module.analyze(as_files([(n, d) for n, d, _ in v]))
                         st.session_state[f"{k}_result"] = res
+                        ds_name = f"Upload {event_log.now().strftime('%d %b %H:%M')}"
+                        for n, d, _ in v:
+                            event_log.store_upload(ds_name, n, d)
                         added, skipped = event_log.append_unique(event_log.events_from_result(
-                            k, res, {"source": "run", "dataset": f"Upload {event_log.now().strftime('%d %b %H:%M')}"}))
+                            k, res, {"source": "run", "dataset": ds_name}))
                         st.toast(f"{SUBSYSTEMS[k].name}: {added} new event(s)"
                                  + (f", {skipped} duplicate(s) skipped" if skipped else ""), icon="✅")
                     except (ValueError, FileNotFoundError) as exc:
@@ -611,9 +633,16 @@ def overview_page() -> None:
                 elif x.status == "shelved":
                     html(ui.pill("unknown", "shelved"))
             with c4:
-                if x.status != "closed" and st.button("Close", key=f"close_{wi}_{x.id}", width="stretch"):
-                    event_log.set_status(x.id, "closed", "closed from the dashboard")
-                    st.rerun()
+                if x.status != "closed":
+                    with st.popover("Close", width="stretch"):
+                        oc = st.radio("What was found?", ["Confirmed fault", "No fault found", "Inconclusive"],
+                                      key=f"oc_{wi}_{x.id}", help="This becomes a labelled example for the learning loop.")
+                        note = st.text_input("Note (optional)", key=f"ocn_{wi}_{x.id}")
+                        if st.button("Close with this outcome", key=f"cl_{wi}_{x.id}", type="primary"):
+                            event_log.set_status(x.id, "closed", note or "closed from the dashboard",
+                                                 outcome={"Confirmed fault": "confirmed", "No fault found": "no_fault_found",
+                                                          "Inconclusive": "inconclusive"}[oc])
+                            st.rerun()
                 st.page_link({"door": PAGE_DOOR, "shm": PAGE_SHM, "rail": PAGE_RAIL, "acv": PAGE_ACV}[x.subsystem],
                              label="Details →", icon=":material/open_in_new:")
         if len(rows) > 8:
@@ -735,6 +764,7 @@ def door_page() -> None:
                         "Every cycle drew motor current in line with normal operation.",
                         "No action needed.", evidence_line(card, "IoU-weighted F1")))
 
+    drift_chip(res, "door")
     html(ui.section("Where the cycles are"))
     plot(charts.door_timeline(cyc, span))
 
@@ -835,6 +865,7 @@ def shm_page() -> None:
                    "point sits on the vehicle because the files carry no position; nothing here is invented.")
 
     files["segments_to_failure"] = (1.0 - files["damage"]) / files["damage"]
+    drift_chip(res, "shm")
     html(ui.section("Damage by file"))
     plot(charts.shm_damage(files))
     html(ui.section("Forecast · segments of this length left before D = 1"))
@@ -944,6 +975,7 @@ def rail_page() -> None:
         html(ui.verdict("ok", "Rail corrugation", f"All {len(files)} recordings read as normal track",
                         "Neither rail shows the periodic axle-box vibration that corrugation produces.",
                         "No action needed. Continue routine monitoring.", ev))
+    drift_chip(res, "rail")
     st.caption("Side I is the rare class (14 of 272 training files) and the model recalls about "
                "two-thirds of it in validation, so a clean Side I result carries less certainty "
                "than a clean Side II result.")
@@ -1058,6 +1090,7 @@ def acv_page() -> None:
         f"Check refrigerant pressure and the condenser on Car {top} first"
         + (f", then Car {second}." if state == "watch" else "."),
         ev, "Leak suspected"))
+    drift_chip(res, "acv")
     if f["unobserved"]:
         st.warning(f"No usable cooling evidence for car(s) {', '.join(f['unobserved'])}: placed "
                    "last by identifier order, which does not mean they are healthy.")
@@ -1404,6 +1437,30 @@ def validation_page() -> None:
         else:
             t = t.rename(columns={"mean": "rank decay", "per_case": "per case"})
         st.dataframe(t.head(12), hide_index=True, width="stretch")
+
+    html(ui.section("Learning loop · outcomes, drift, retrain gate"))
+    oc = event_log.outcomes()
+    rl = PROJECT_ROOT / "data" / "retrain_log.json"
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        html(ui.kpis([("Labelled outcomes", f"{len(oc)}", "faults closed with a finding")]))
+    with c2:
+        n_conf = int((oc["outcome"] == "confirmed").sum()) if len(oc) else 0
+        html(ui.kpis([("Confirmed faults", f"{n_conf}", f"{int((oc['outcome'] == 'no_fault_found').sum()) if len(oc) else 0} no fault found")]))
+    with c3:
+        last = _json.loads(rl.read_text(encoding="utf-8"))[-1] if rl.exists() else None
+        html(ui.kpis([("Last retrain", last["at"][:16] if last else "never", (last["summary"][:60] if last else "python -m scripts.retrain"))]))
+    st.markdown("""
+How the models learn: closing a fault with **Confirmed** or **No fault found** turns that verdict into a labelled
+example, and the raw file is kept under `data/uploads/`. `scripts/retrain.py` retrains Door and Rail on the training
+data plus those examples under the same leakage-safe folds, and **promotes the challenger only if it beats the
+incumbent by the pre-registered margin**; otherwise the attempt is logged and nothing changes. Every run also
+records feature drift against the training distribution, shown on each subsystem page. SHM is a physics fit and
+ACV a fixed rule: outcomes tune their watch bands, they do not retrain.
+""")
+    if len(oc):
+        st.dataframe(oc[["time", "subsystem_name", "title", "outcome", "train", "station", "stored_file"]].head(20),
+                     hide_index=True, width="stretch")
 
     html(ui.section("What the classifiers rely on"))
     a, b = st.columns(2, gap="medium")

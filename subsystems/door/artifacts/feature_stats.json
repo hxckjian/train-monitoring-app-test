@@ -1,0 +1,113 @@
+{
+ "n": 110,
+ "features": {
+  "duration_s": {
+   "median": 3.23,
+   "mad": 0.6671700000000003
+  },
+  "n_rows": {
+   "median": 162.5,
+   "mad": 33.3585
+  },
+  "cur_mean": {
+   "median": 637.0619451470516,
+   "mad": 178.32085097643056
+  },
+  "cur_std": {
+   "median": 616.0541476939395,
+   "mad": 169.98279402829104
+  },
+  "cur_max": {
+   "median": 2378.0,
+   "mad": 237.95729999999998
+  },
+  "cur_med": {
+   "median": 314.5,
+   "mad": 77.8365
+  },
+  "cur_p25": {
+   "median": 209.0,
+   "mad": 49.29645
+  },
+  "cur_p75": {
+   "median": 793.75,
+   "mad": 244.814325
+  },
+  "cur_p90": {
+   "median": 1666.6500000000024,
+   "mad": 534.6996900000034
+  },
+  "cur_mean_mid": {
+   "median": 241.5316760224539,
+   "mad": 56.892968134048026
+  },
+  "cur_integral": {
+   "median": 1820.26,
+   "mad": 355.1864819999999
+  },
+  "cur_above_med_frac": {
+   "median": 0.4930555555555556,
+   "mad": 0.010017567567567547
+  },
+  "volt_mean": {
+   "median": 5172.278225806452,
+   "mad": 1003.0644577832909
+  },
+  "volt_std": {
+   "median": 2425.460179310583,
+   "mad": 1464.6957723135392
+  },
+  "emf_mean": {
+   "median": 1034.537621077102,
+   "mad": 214.09694433432875
+  },
+  "emf_std": {
+   "median": 656.0387611609989,
+   "mad": 352.24224643340335
+  },
+  "emf_max": {
+   "median": 1769.5,
+   "mad": 699.0459
+  },
+  "cur_per_volt": {
+   "median": 0.11553037483649169,
+   "mad": 0.01823642862087198
+  },
+  "cur_per_emf": {
+   "median": 0.5412314178268472,
+   "mad": 0.09634876558072912
+  },
+  "pos_min": {
+   "median": 0.0,
+   "mad": null
+  },
+  "pos_max": {
+   "median": 700.0,
+   "mad": null
+  },
+  "pos_range": {
+   "median": 700.0,
+   "mad": null
+  },
+  "pos_travel": {
+   "median": 700.0,
+   "mad": null
+  },
+  "frac_opening": {
+   "median": 0.5,
+   "mad": 0.7413
+  },
+  "frac_closing": {
+   "median": 0.5,
+   "mad": 0.7413
+  },
+  "is_closing": {
+   "median": 0.5,
+   "mad": 0.7413
+  },
+  "switch_transitions": {
+   "median": 4.0,
+   "mad": null
+  }
+ }
+}

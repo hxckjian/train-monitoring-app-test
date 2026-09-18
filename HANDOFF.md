@@ -72,6 +72,18 @@ artifacts, plain upload/run/download app). The best of each was kept:
 The one Door disagreement is segment 24 (starts 2023-7-5-0-22-17-683): theirs
 says Abnormal, ours Normal. Left as ours; noted for the write-up.
 
+## 1.2 Learning loop — 2026-09-19
+
+Closing a fault in the work queue records an outcome (confirmed / no fault found /
+inconclusive); the raw upload is kept under `data/uploads/<dataset>/`. `scripts/retrain.py`
+retrains Door and Rail on training data plus outcome examples under the same folds and
+promotes only on a pre-registered margin (orig folds ≥ incumbent − 0.005 and outcome block
+≥ incumbent + 0.02); every attempt goes to `data/retrain_log.json`. SHM (physics) and ACV
+(fixed rule) do not retrain. `core/drift.py` scores every run against the training feature
+distribution (`artifacts/feature_stats.json`, from `scripts/feature_stats.py`) and each
+subsystem page shows the drift level. Validation page → "Learning loop" shows counts, the
+last retrain, and the labelled outcomes.
+
 ## 2. The team situation
 
 Three people, three different AI assistants, helping each other.

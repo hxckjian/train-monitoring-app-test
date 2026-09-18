@@ -50,6 +50,7 @@ existing session id from anywhere.
 | Build the submission zip | `python -m scripts.build_predictions` |
 | Build the team folder | `python -m scripts.package_submission --team "<name>"` |
 | Model search (pre-registered) | `python -m scripts.model_search` |
+| Learning loop: retrain from operator outcomes (gated) | `python -m scripts.retrain [--dry-run]`; outcomes come from closing faults in the work queue; drift stats via `python -m scripts.feature_stats` |
 | Cloud Run deploy | `deploy/CLOUD_RUN.md`, `deploy/deploy_cloud_run.ps1` |
 | Streamlit Cloud | deploys from `master` automatically; Manage app → Reboot if a page errors after a deploy |
 

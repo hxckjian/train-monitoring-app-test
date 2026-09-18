@@ -33,3 +33,5 @@ predictions/analysis_cache.pkl
 data/events.jsonl
 data/events_actions.jsonl
 app/static/
+data/uploads/
+data/retrain_log.json

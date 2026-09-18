@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import joblib
+from core import drift as _drift
 import numpy as np
 import pandas as pd
 
@@ -82,6 +83,10 @@ def _process(uploaded_file: Any, params: dict, evidence: bool) -> dict:
             "top_share": damage_concentration(cycles, params["m"], 0.001),
             "profile": amplitude_profile(cycles, params["m"]),
             "envelope": stress_envelope(x),
+            "drift": _drift.score("shm", {"stress_std": float(x.std()), "stress_max": float(x.max()),
+                                          "stress_min": float(x.min()),
+                                          "stress_p99_range": float(np.percentile(x, 99.9) - np.percentile(x, 0.1)),
+                                          "n_samples": int(x.size)}),
         })
     return out
 

@@ -1,0 +1,33 @@
+{
+ "n": 48,
+ "features": {
+  "peer_mean": {
+   "median": -0.012800329675818779,
+   "mad": 0.08569644814405139
+  },
+  "peer_q90": {
+   "median": 0.5,
+   "mad": null
+  },
+  "peer_hot_fraction": {
+   "median": 0.0,
+   "mad": null
+  },
+  "excess_mean": {
+   "median": 0.16853626798078752,
+   "mad": 0.5070546508346399
+  },
+  "excess_q90": {
+   "median": 1.0,
+   "mad": 1.4826
+  },
+  "excess_peer_mean": {
+   "median": -0.0019309056563019964,
+   "mad": 0.1253709995198683
+  },
+  "excess_peer_q90": {
+   "median": 0.5,
+   "mad": null
+  }
+ }
+}

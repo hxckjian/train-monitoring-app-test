@@ -285,11 +285,18 @@ def event_id(row) -> str:
     return hashlib.sha1(key.encode()).hexdigest()[:12]
 
 
-def set_status(eid: str, status: str, note: str = "", by: str = "operator") -> None:
+OUTCOMES = ("confirmed", "no_fault_found", "inconclusive")
+UPLOADS_DIR = EVENTS_PATH.parent / "uploads"
+
+
+def set_status(eid: str, status: str, note: str = "", by: str = "operator", outcome: str | None = None) -> None:
+    """Record an action. Closing with an outcome is what turns a verdict into a label."""
     if status not in STATUS:
         raise ValueError(status)
+    if outcome is not None and outcome not in OUTCOMES:
+        raise ValueError(outcome)
     ACTIONS_PATH.parent.mkdir(exist_ok=True)
-    rec = {"id": eid, "status": status, "note": note, "by": by, "at": now().isoformat()}
+    rec = {"id": eid, "status": status, "note": note, "by": by, "at": now().isoformat(), "outcome": outcome}
     if status == "shelved":
         rec["until"] = (now() + timedelta(hours=SHELVE_HOURS)).isoformat()
     with open(ACTIONS_PATH, "a", encoding="utf-8") as f:
@@ -327,4 +334,31 @@ def with_status(df: pd.DataFrame) -> pd.DataFrame:
                      for i, s in zip(out["id"], out["state"])]
     out["note"] = [acts.get(i, {}).get("note", "") for i in out["id"]]
     out["status_at"] = [acts.get(i, {}).get("at") for i in out["id"]]
+    out["outcome"] = [acts.get(i, {}).get("outcome") for i in out["id"]]
     return out
+
+
+def outcomes() -> pd.DataFrame:
+    """Every closed event that carries an outcome: the labelled examples the learning loop uses."""
+    df = with_status(load())
+    if df.empty:
+        return df
+    got = df[df["outcome"].notna()].copy()
+    got["stored_file"] = [str(p) if (p := stored_upload(r)) else None for _, r in got.iterrows()]
+    return got.reset_index(drop=True)
+
+
+def store_upload(dataset: str | None, name: str, data: bytes) -> Path:
+    """Keep the raw file beside the log so a retrain can go back to the signal."""
+    folder = UPLOADS_DIR / (re.sub(r"[^A-Za-z0-9._-]+", "_", dataset or "unnamed"))
+    folder.mkdir(parents=True, exist_ok=True)
+    p = folder / name
+    if not p.exists():
+        p.write_bytes(data)
+    return p
+
+
+def stored_upload(row) -> Path | None:
+    folder = UPLOADS_DIR / (re.sub(r"[^A-Za-z0-9._-]+", "_", str(row.get("dataset") or "unnamed")))
+    p = folder / str(row.get("file_id") or "")
+    return p if p.exists() else None

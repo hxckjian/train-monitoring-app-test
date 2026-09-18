@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import joblib
+from core import drift as _drift
 import numpy as np
 import pandas as pd
 
@@ -123,6 +124,7 @@ def analyze(uploaded_files) -> dict:
         if not segments:
             continue
         preds.append(format_predictions(segments, labels))
+        drift_scores = [_drift.score("door", features.iloc[k]) for k in range(len(segments))]
         t_s = (df["_t"] - origin).dt.total_seconds().to_numpy()
         cycle_id = np.full(len(df), -1)
         for k, seg in enumerate(segments):
@@ -141,6 +143,7 @@ def analyze(uploaded_files) -> dict:
                 "duration_s": float(features.iloc[k]["duration_s"]),
                 "cur_mean_mid": float(features.iloc[k]["cur_mean_mid"]),
                 "cur_per_emf": float(features.iloc[k]["cur_per_emf"]),
+                "drift": (drift_scores[k] or {}).get("score"),
             })
         traces.append(pd.DataFrame({
             "t_s": t_s,
@@ -153,9 +156,12 @@ def analyze(uploaded_files) -> dict:
 
     predictions = (pd.concat(preds, ignore_index=True) if preds
                    else pd.DataFrame(columns=list(OUTPUT_COLUMNS)))
+    cyc = pd.DataFrame(cycles)
     return {
         "predictions": predictions[list(OUTPUT_COLUMNS)],
-        "cycles": pd.DataFrame(cycles),
+        "drift": _drift.summarise([{"score": float(v), "level": next(n for c, n in _drift.LEVELS if float(v) < c)}
+                                   for v in cyc["drift"].dropna()] if len(cyc) else []),
+        "cycles": cyc,
         "trace": pd.concat(traces, ignore_index=True) if traces else pd.DataFrame(),
         "config": config,
     }
