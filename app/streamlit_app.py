@@ -359,6 +359,10 @@ def dash_map_view(df, ev, line, lines_selected=None):
         pts, focus = insight.stations_on(df, lines_selected or [line]), (lines_selected or [line])
     else:
         pts, focus = None, []
+    prev = st.session_state.get("_dash_lastpick")
+    if prev != pick:
+        st.session_state["_dash_lastpick"] = pick
+        st.session_state["_dash_mapnonce"] = st.session_state.get("_dash_mapnonce", 0) + 1
     return insight.view_for(pts), focus, pick
 
 def overview_page() -> None:
@@ -502,7 +506,9 @@ def overview_page() -> None:
             html(ui.empty("Station map unavailable", ["data/stations/AmendmenttoMP2014RailStation.geojson is missing."]))
         else:
             weather = livemap.fetch_weather()
-            st.pydeck_chart(insight.network_deck(df, line, worst, "zones" if mode == "Zone" else "lines", weather, view), height=520)
+            st.pydeck_chart(insight.network_deck(df, line, worst, "zones" if mode == "Zone" else "lines", weather, view,
+                                                 focus if pick != "Whole Singapore" else None),
+                            height=520, key=f"dash_map_{st.session_state.get('_dash_mapnonce', 0)}")
             if pick == "Affected lines":
                 st.caption("Showing the lines that carry a fault or watch in the selected data: " + ", ".join(focus)
                            + ". Choose Whole Singapore to zoom back out.")
@@ -1167,7 +1173,7 @@ def fleet_page() -> None:
             alerts = livemap.fetch_train_alerts(key) if key else None
             deck = insight.fleet_deck(df, agg, (focus if pick != "Whole Singapore" else lines), weather, view)
             deck.layers = insight.crowd_layer(crowd, df) + insight.alert_layer(alerts, df) + deck.layers
-            st.pydeck_chart(deck, height=520)
+            st.pydeck_chart(deck, height=520, key=f"fleet_map_{st.session_state.get('_dash_mapnonce', 0)}")
             if crowd is not None:
                 st.caption(("Platform crowd rings (DataMall PCDRealTime, 10-minute feed): green low, amber moderate, red high · "
                             f"fetched {crowd.get('fetched_at')} SGT") if crowd.get("ok") else f"Crowd feed: {crowd.get('reason')}")

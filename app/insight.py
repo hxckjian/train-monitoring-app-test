@@ -93,20 +93,35 @@ def weather_layers(weather: dict | None) -> list:
 
 
 def network_deck(df: pd.DataFrame, line: str | None, state: str, mode: str = "lines",
-                 weather: dict | None = None, view: pdk.ViewState | None = None) -> pdk.Deck:
+                 weather: dict | None = None, view: pdk.ViewState | None = None,
+                 focus: list[str] | None = None) -> pdk.Deck:
     """Detailed map: line paths in official colours, stations coloured by zone or type,
-    the chosen line lifted with a halo in the verdict colour."""
+    the chosen line lifted with a halo in the verdict colour. With `focus`, every other
+    line and its stations are dimmed so the eye lands on the lines that matter."""
     d = df.copy()
     if mode == "zones":
         d["color"] = [ZONES[z]["rgb"] for z in d["zone"]]
     else:
         d["color"] = [TYPE_COLOR.get(t, TYPE_COLOR["MRT"]) for t in d["type"]]
+    if focus:
+        on = {n for ln in focus for n in LINES.get(ln, ("", []))[1]}
+        d["color"] = [c if k in on else [90, 100, 112, 60] for c, k in zip(d["color"], d["key"])]
     layers = []
     paths = line_paths(d)
     if paths:
-        layers.append(pdk.Layer("PathLayer", data=paths, get_path="path", get_color="color",
-                                width_min_pixels=3, get_width=60, opacity=0.9 if mode == "lines" else 0.35,
-                                pickable=True))
+        if focus:
+            dim = [p for p in paths if p["line"] not in focus]
+            lit = [p for p in paths if p["line"] in focus]
+            if dim:
+                layers.append(pdk.Layer("PathLayer", data=dim, get_path="path", get_color="color",
+                                        width_min_pixels=2, get_width=40, opacity=0.12, pickable=False))
+            if lit:
+                layers.append(pdk.Layer("PathLayer", data=lit, get_path="path", get_color="color",
+                                        width_min_pixels=4, get_width=80, opacity=0.95, pickable=True))
+        else:
+            layers.append(pdk.Layer("PathLayer", data=paths, get_path="path", get_color="color",
+                                    width_min_pixels=3, get_width=60, opacity=0.9 if mode == "lines" else 0.35,
+                                    pickable=True))
     layers.append(pdk.Layer("ScatterplotLayer", data=d, get_position="[lon, lat]", get_fill_color="color",
                             get_radius=130, pickable=True, stroked=True, get_line_color=[255, 255, 255],
                             line_width_min_pixels=1, opacity=0.95))
@@ -289,14 +304,20 @@ def event_layers(agg: pd.DataFrame) -> list:
 
 def fleet_deck(df: pd.DataFrame, agg: pd.DataFrame, lines: list[str], weather: dict | None = None,
                view: pdk.ViewState | None = None) -> pdk.Deck:
-    """Line paths for the selected lines, event markers per station, weather underneath."""
+    """All line paths drawn; the selected lines bright, the rest dimmed; event markers per
+    station; weather underneath."""
     d = df.copy()
     d["color"] = [TYPE_COLOR.get(t, TYPE_COLOR["MRT"]) for t in d["type"]]
     layers = weather_layers(weather)
-    paths = [p for p in line_paths(d) if not lines or p["line"] in lines]
-    if paths:
-        layers.append(pdk.Layer("PathLayer", data=paths, get_path="path", get_color="color",
-                                width_min_pixels=3, get_width=60, opacity=0.8))
+    paths = line_paths(d)
+    lit = [p for p in paths if not lines or p["line"] in lines]
+    dim = [p for p in paths if lines and p["line"] not in lines]
+    if dim:
+        layers.append(pdk.Layer("PathLayer", data=dim, get_path="path", get_color="color",
+                                width_min_pixels=2, get_width=40, opacity=0.12))
+    if lit:
+        layers.append(pdk.Layer("PathLayer", data=lit, get_path="path", get_color="color",
+                                width_min_pixels=3, get_width=60, opacity=0.85))
     d["label"] = ""
     layers.append(pdk.Layer("ScatterplotLayer", data=d, get_position="[lon, lat]", get_fill_color="color",
                             get_radius=90, pickable=True, opacity=0.7))
