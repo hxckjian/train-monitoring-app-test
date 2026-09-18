@@ -245,6 +245,14 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 .nw-drop b {{ color:var(--ink-primary); }}
 [data-testid="stFileUploaderDropzone"] {{ min-height:64px; }}
 
+.nw-urg {{ font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:4px 10px; border-radius:999px; }}
+.nw-urg.alert {{ background:var(--status-alert); color:#fff; animation: nw-blink 1.6s ease-out infinite; }}
+.nw-urg.watch {{ background:var(--status-watch); color:#111; }}
+.nw-urg.ok {{ background:var(--status-ok-soft); color:var(--status-ok); }}
+.nw-act.alert {{ border-left:4px solid var(--status-alert); }} .nw-act.watch {{ border-left:4px solid var(--status-watch); }} .nw-act.ok {{ border-left:4px solid var(--status-ok); }}
+.nw-tips {{ margin:0; padding-left:18px; font-size:14px; line-height:1.55; color:var(--ink-secondary); }}
+.nw-tips li {{ margin:4px 0; }}
+
 /* ---- streamlit widget polish ---- */
 .stButton > button, .stDownloadButton > button {{ border-radius: var(--radius-md); font-weight: 600;
   border: 1px solid var(--line-control); }}

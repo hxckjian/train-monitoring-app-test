@@ -54,6 +54,7 @@ import insight  # noqa: E402
 import livemap  # noqa: E402
 import schematics  # noqa: E402
 import core.cache as _core_cache  # noqa: E402
+import core.decisions as _core_decisions  # noqa: E402
 import core.events as _core_events  # noqa: E402
 import core.quickdrop as _core_quickdrop  # noqa: E402
 import core.registry as _core_registry  # noqa: E402
@@ -63,10 +64,11 @@ import subsystems.generic.monitor as _generic_monitor  # noqa: E402
 import network as _network  # noqa: E402
 import theme as _theme  # noqa: E402
 
-_reload_project_modules((_core_events, _core_cache, _core_quickdrop, _core_registry, _core_submission,
+_reload_project_modules((_core_events, _core_cache, _core_decisions, _core_quickdrop, _core_registry, _core_submission,
                          _generic_monitor, _theme, ui, charts, _network, livemap, insight, schematics))
 # rebind the names this script uses, in case a module object was replaced
 result_cache, event_log, quickdrop, monitor = _core_cache, _core_events, _core_quickdrop, _generic_monitor
+decisions = _core_decisions
 from core.registry import DATA_ROOT, SUBSYSTEMS, SubsystemSpec  # noqa: E402,F811
 from core.submission import SCHEMAS, build_predictions_zip, validate_submission  # noqa: E402,F811
 from theme import T, css  # noqa: E402,F811
@@ -102,10 +104,44 @@ def txt(v, default: str = "—") -> str:
 _plot_n = {"n": 0}
 
 
-def plot(fig, key: str | None = None) -> None:
-    """Every chart gets its own key, so two empty figures on one page can never collide."""
+def engineer_view() -> bool:
+    return st.session_state.get("view_mode", "Operator") == "Engineer"
+
+
+def plot(fig, key: str | None = None, always: bool = False) -> None:
+    """Every chart gets its own key, so two empty figures on one page can never collide.
+    In Operator view, evidence charts are hidden unless `always` is set."""
+    if not always and not engineer_view():
+        return
     _plot_n["n"] += 1
     st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key=key or f"fig_{_plot_n['n']}")
+
+
+def view_toggle() -> None:
+    st.segmented_control("View", ["Operator", "Engineer"], default=st.session_state.get("view_mode", "Operator"),
+                         key="view_mode", label_visibility="collapsed",
+                         help="Operator: actions and plain words. Engineer: every chart, table and model detail.")
+
+
+def how_to_read(key: str) -> None:
+    g = decisions.GLOSSARY[key]
+    with st.expander("How to read this (for someone new to the data)"):
+        st.markdown(f"**What is measured.** {g['what']}\n\n**How to read the result.** {g['read']}\n\n**What to do.** {g['act']}")
+
+
+def actions_panel(acts: list[dict], title: str = "What to do now") -> None:
+    html(ui.section(title))
+    if not acts:
+        html(ui.empty("Nothing to act on yet", ["Drop a file above, or load a dataset. Actions appear here in "
+                                                "order of urgency, with the reason and who owns them."]))
+        return
+    for a in acts:
+        html(f'<div class="nw-panel nw-act {a["state"]}" style="padding:14px 18px;margin-bottom:8px">'
+             f'<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
+             f'<span class="nw-urg {a["state"]}">{a["urgency"]}</span>'
+             f'<b style="font-size:15px">{quickdrop.SUBSYSTEM_EMOJI.get(a["page"], "")} {a["action"]}</b>'
+             f'<span class="muted" style="margin-left:auto;font-size:12px">{a["owner"]} · {a["subsystem"]}</span></div>'
+             f'<div class="muted" style="font-size:13px;margin-top:6px">{a["why"]}</div></div>')
 
 
 def as_files(payload: list[tuple[str, bytes]]) -> list[io.BytesIO]:
@@ -336,6 +372,11 @@ def overview_page() -> None:
     hero_fragment()
 
     # ---- quick drop: any competition-format file, routed by its own layout
+    v1, v2 = st.columns([1, 3])
+    with v1:
+        view_toggle()
+    with v2:
+        st.caption("Operator view shows actions and plain words. Engineer view adds every chart and model detail.")
     q1, q2 = st.columns([2.2, 1], gap="medium")
     with q1:
         drops = st.file_uploader("Drop any file here: the console works out which subsystem it is",
@@ -399,10 +440,10 @@ def overview_page() -> None:
         html('<div class="nw-panel"><div class="t">Trend</div>')
         if "door" in tr:
             st.caption("Door · sustained motor current per 5-minute window, abnormal cycles in red")
-            plot(charts.door_trend_compact(tr["door"]))
+            plot(charts.door_trend_compact(tr["door"]), always=True)
         elif "rail" in tr:
             st.caption("Rail · P(corrugated) across recordings")
-            plot(charts.rail_trend(tr["rail"]))
+            plot(charts.rail_trend(tr["rail"]), always=True)
         else:
             st.caption("Run a subsystem to see a trend.")
         html('</div>')
@@ -439,6 +480,14 @@ def overview_page() -> None:
                       f'rain {w.get("rain_mm", 0):.1f} mm, {w.get("area", "")} {w.get("forecast", "")}'
                       f' &nbsp;·&nbsp; blue discs = rain gauges')
             html(f'<div style="font-size:12px;color:var(--ink-secondary);margin-top:6px">{legend}{wl}</div>')
+
+    # ---- decisions first: what to do, then why
+    acts = decisions.recommend(results)
+    actions_panel(acts)
+    tips = decisions.insights(results)
+    if tips:
+        html(ui.section("What the data is telling you"))
+        html('<div class="nw-panel"><ul class="nw-tips">' + "".join(f"<li>{t}</li>" for t in tips) + "</ul></div>")
 
     # ---- work queue: open faults, acknowledge / close like a maintenance system
     html(ui.section("Work queue"))
@@ -492,7 +541,7 @@ def overview_page() -> None:
                "Actions are kept beside the log, so a re-run of the same file keeps its status.")
 
     # ---- deeper tabs
-    tab_glance, tab_trends, tab_zones, tab_data = st.tabs(["Subsystems", "Trends", "Zones", "Training data"])
+    tab_glance, tab_trends, tab_zones = st.tabs(["Subsystems", "Trends", "Zones"])
     with tab_glance:
         cols = st.columns(4, gap="small")
         for col, spec in zip(cols, SUBSYSTEMS.values()):
@@ -558,24 +607,6 @@ def overview_page() -> None:
                                         "On this train's line" if r.zone in mine else "No assessed train",
                                         r.zone, r.hint, f"{r.stations}", "stations", f"lines: {r.lines}"))
             st.caption("A verdict belongs to a train, not a place. Zones light up through the selected line.")
-    with tab_data:
-        d1, d2 = st.columns(2, gap="medium")
-        with d1:
-            st.caption("Door · 110 labelled cycles in one 24-minute stream")
-            plot(charts.class_bar({"Normal": 80, "Abnormal resistance": 30}, {"Normal": "status-ok", "Abnormal resistance": "status-alert"}))
-            st.caption("Rail · 272 one-second recordings")
-            plot(charts.class_bar({"Normal": 234, "Side I": 14, "Side II": 24}, charts.RAIL_COLOR))
-        with d2:
-            lab = DATA_ROOT / "SHM" / "Train_Labels.csv"
-            st.caption("Structural health · reference damage of the 64 training files")
-            if lab.exists():
-                plot(charts.damage_hist(pd.read_csv(lab)["damage"]))
-            else:
-                st.caption("dataset not present on this machine")
-            st.caption("Air conditioning · faulty car in the 6 training cases")
-            plot(charts.class_bar({"01": 2, "02": 1, "03": 1, "04": 1, "06": 1}, None))
-        st.caption("Class balance drives the metric: macro F1 for Rail, IoU-weighted F1 for Door, relative error "
-                   "for SHM, rank decay for ACV. The Validation page shows how each was scored.")
 
 
 def door_page() -> None:
@@ -584,9 +615,12 @@ def door_page() -> None:
                    "The door controller streams motor current, voltage, back-EMF and "
                    "door position. This finds every open or close cycle in the stream "
                    "and checks each one for abnormal resistance.", T("subsystem-door")))
+    view_toggle()
+    how_to_read("door")
     res = run_panel(spec, "Analyse door stream")
     if not res:
         return
+    actions_panel(decisions.recommend({"door": res}), "What to do")
     cyc, trace = res["cycles"], res["trace"]
     if cyc.empty:
         html(ui.verdict("unknown", "Door", "No door cycles found",
@@ -675,9 +709,12 @@ def shm_page() -> None:
                    "Each file is a long dynamic-stress recording from one measurement point. "
                    "This counts every stress cycle and converts them into fatigue damage, "
                    "where 1.0 is the end of the structure's fatigue life.", T("subsystem-shm")))
+    view_toggle()
+    how_to_read("shm")
     res = run_panel(spec, "Assess fatigue damage")
     if not res:
         return
+    actions_panel(decisions.recommend({"shm": res}), "What to do")
 
     files = pd.DataFrame([{k: v for k, v in f.items() if k not in ("profile", "envelope")}
                           for f in res["files"]])
@@ -782,9 +819,12 @@ def rail_page() -> None:
                    "bearings of an 8-car train at 10 kHz, plus a rotating-speed pulse. "
                    "Positions 1, 3, 5, 7 ride the Side I rail and 2, 4, 6, 8 the Side II rail, "
                    "so the two rails are judged independently.", T("subsystem-rail")))
+    view_toggle()
+    how_to_read("rail")
     res = run_panel(spec, "Classify recordings")
     if not res:
         return
+    actions_panel(decisions.recommend({"rail": res}), "What to do")
     files = pd.DataFrame([{"file_id": f["file_id"], "prediction": f["prediction"],
                            "speed_km_h": f["speed"]["speed_km_h"],
                            "side_i_rms": f["side_i_rms"], "side_ii_rms": f["side_ii_rms"],
@@ -874,9 +914,12 @@ def acv_page() -> None:
                    "cooling setpoint and running mode for all eight cars, every 30 seconds. A car "
                    "that has lost refrigerant cannot pull its cabin down to the setpoint, so it "
                    "runs warmer than its neighbours under the same conditions.", T("subsystem-acv")))
+    view_toggle()
+    how_to_read("acv")
     res = run_panel(spec, "Rank the cars")
     if not res:
         return
+    actions_panel(decisions.recommend({"acv": res}), "What to do")
     v = card["validation"]
     ev = (f"rank decay {v['mean_score']:.3f} ± {v['std_score']:.3f} · {v['split'].split(',')[0]} · "
           f"random ranking {v['random_ranking_baseline']} · model {card['model_version']}")
@@ -1217,6 +1260,26 @@ def validation_page() -> None:
             st.markdown(f"**Split.** {v['split']}")
             st.caption(note)
     import json as _json
+    html(ui.section("Training data behind the models"))
+    if True:
+        d1, d2 = st.columns(2, gap="medium")
+        with d1:
+            st.caption("Door · 110 labelled cycles in one 24-minute stream")
+            plot(charts.class_bar({"Normal": 80, "Abnormal resistance": 30}, {"Normal": "status-ok", "Abnormal resistance": "status-alert"}))
+            st.caption("Rail · 272 one-second recordings")
+            plot(charts.class_bar({"Normal": 234, "Side I": 14, "Side II": 24}, charts.RAIL_COLOR))
+        with d2:
+            lab = DATA_ROOT / "SHM" / "Train_Labels.csv"
+            st.caption("Structural health · reference damage of the 64 training files")
+            if lab.exists():
+                plot(charts.damage_hist(pd.read_csv(lab)["damage"]))
+            else:
+                st.caption("dataset not present on this machine")
+            st.caption("Air conditioning · faulty car in the 6 training cases")
+            plot(charts.class_bar({"01": 2, "02": 1, "03": 1, "04": 1, "06": 1}, None))
+        st.caption("Class balance drives the metric: macro F1 for Rail, IoU-weighted F1 for Door, relative error "
+                   "for SHM, rank decay for ACV. The Validation page shows how each was scored.")
+
     html(ui.section("Model comparison · pre-registered search"))
     st.caption("Every candidate scored under the same leakage-safe protocol; the decision rule was written "
                "before the run (scripts/model_search.py). A candidate that does not clear the rule is "
