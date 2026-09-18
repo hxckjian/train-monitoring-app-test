@@ -69,6 +69,11 @@ def short_names(units: list[str]) -> dict[str, str]:
     import os
     pre = os.path.commonprefix(names)
     suf = os.path.commonprefix([n[::-1] for n in names])[::-1]
+    # back the cut off to a word boundary so 'Car 01' / 'Car 02' keep their '0'
+    while pre and pre[-1] not in " -_:/":
+        pre = pre[:-1]
+    while suf and suf[0] not in " -_:/":
+        suf = suf[1:]
     out = {}
     for u, n in zip(units, names):
         core = n[len(pre):len(n) - len(suf)] if len(n) > len(pre) + len(suf) else n

@@ -59,5 +59,5 @@ def test_generic_peer_ranking_finds_the_hot_unit():
     rank = monitor.peer_ranking(df, list(df.columns))
     assert rank.iloc[0]["unit"] == "u3" and rank["rank"].tolist() == list(range(1, 7))
     state, title, _ = monitor.verdict_for_ranking(rank, "Unit")
-    assert state == "alert" and "Unit 3 " in title
+    assert state == "alert" and "Unit u3 " in title
     assert monitor.short_names(["Car 01 - T", "Car 02 - T"]) == {"Car 01 - T": "01", "Car 02 - T": "02"}
