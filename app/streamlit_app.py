@@ -314,8 +314,8 @@ def overview_page() -> None:
                      f'<div class="h" style="display:flex;gap:10px;align-items:center">{ui.pill(x.state, ui.STATES[x.state][1])}'
                      f'<b>{x.title}</b><span class="mono" style="margin-left:auto;font-size:11px;color:var(--ink-muted)">'
                      f'{event_log.fmt_time(x.time)}</span></div>'
-                     f'<div class="muted" style="font-size:12px;margin-top:4px">{x.subsystem_name} · {x.train or "train not known"} · '
-                     f'{(x.station or "location not known").title()} · {x.detail}'
+                     f'<div class="muted" style="font-size:12px;margin-top:4px">{x.subsystem_name} · {event_log.txt(x.train, "train not known")} · '
+                     f'{event_log.txt(x.station, "location not known").title()} · {event_log.txt(x.detail, "")}'
                      + (f' · <i>{x.note}</i>' if x.note else "") + '</div></div>')
             with c2:
                 if x.status == "open" and st.button("Acknowledge", key=f"ack_{x.id}", width="stretch"):
@@ -915,7 +915,7 @@ def fleet_page() -> None:
         show = ev.head(200).copy()
         rows = "".join(
             f'<tr><td class="mono">{event_log.fmt_time(x.time)}</td><td>{x.subsystem_name}</td>'
-            f'<td>{x.title}</td><td class="muted">{x.detail}</td><td class="muted">{x.train or "—"} · {(x.station or "—").title()}</td>'
+            f'<td>{x.title}</td><td class="muted">{event_log.txt(x.detail, "")}</td><td class="muted">{event_log.txt(x.train)} · {event_log.txt(x.station).title()}</td>'
             f'<td>{ui.pill(x.state, ui.STATES[x.state][1])}</td></tr>'
             for x in show.head(25).itertuples())
         html(f'<div class="nw-panel"><table class="nw-table"><thead><tr><th>Time</th><th>Subsystem</th><th>Event</th>'

@@ -27,6 +27,16 @@ LINE_CODES = ("NSL", "EWL", "NEL", "CCL", "DTL", "TEL")
 SUBSYSTEM_NAME = {"door": "Door", "shm": "Structural health", "rail": "Rail corrugation", "acv": "Air conditioning"}
 
 
+def txt(v, default: str = "—") -> str:
+    """A display string for a value that may be None or NaN."""
+    try:
+        if v is None or (isinstance(v, float) and v != v):
+            return default
+    except Exception:
+        return default
+    return str(v) if str(v) not in ("", "nan", "None") else default
+
+
 def fmt_time(t, pattern: str = "%d %b %H:%M") -> str:
     """Never let a missing timestamp break a page."""
     try:
@@ -146,6 +156,9 @@ def load() -> pd.DataFrame:
     df["time"] = pd.to_datetime(df["time"], utc=True, errors="coerce", format="ISO8601").dt.tz_convert(SGT)
     df["analysed_at"] = pd.to_datetime(df["analysed_at"], utc=True, errors="coerce", format="ISO8601").dt.tz_convert(SGT)
     df["time"] = df["time"].fillna(df["analysed_at"]).fillna(pd.Timestamp.now(tz=SGT))
+    # missing context is None, never NaN, so page code can rely on `or`
+    for c in ("train", "line", "station", "source", "file_id", "detail", "title"):
+        df[c] = df[c].astype(object).where(df[c].notna(), None)
     return df.sort_values("time", ascending=False).reset_index(drop=True)
 
 
