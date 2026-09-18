@@ -28,38 +28,25 @@ import pandas as pd  # noqa: E402
 import streamlit as st  # noqa: E402
 
 
-def _fresh(module):
-    """Reload a project module if its file changed since it was imported.
+def _reload_project_modules(modules) -> bool:
+    """Reload every project module once per script version.
 
-    Hosted Streamlit re-runs this script when a deploy lands but keeps already
-    imported modules, so a new script can meet an old module and fail with an
-    AttributeError. Comparing the file's mtime with the one seen at import closes
-    that gap without a restart."""
-    try:
-        path = module.__file__
-        mtime = os.path.getmtime(path)
-        seen = getattr(module, "__loaded_mtime__", None)
-        if seen is None:
-            module.__loaded_mtime__ = mtime
-        elif mtime > seen:
-            module = importlib.reload(module)
-            module.__loaded_mtime__ = mtime
-    except Exception:
-        pass
-    return module
+    Hosted Streamlit re-runs this script when a deploy lands but keeps the modules
+    it imported earlier, so a new script can meet an old module. The script's own
+    mtime is the version stamp: when it changes, reload the modules in dependency
+    order. Costs a few milliseconds, once per deploy per process."""
+    import core as _core_pkg
+    stamp = os.path.getmtime(__file__)
+    if getattr(_core_pkg, "__script_stamp__", None) == stamp:
+        return False
+    for m in modules:
+        try:
+            importlib.reload(m)
+        except Exception:
+            pass
+    _core_pkg.__script_stamp__ = stamp
+    return True
 
-import charts  # noqa: E402
-import components as ui  # noqa: E402
-import insight  # noqa: E402
-import livemap  # noqa: E402
-import schematics  # noqa: E402
-from subsystems.generic import monitor  # noqa: E402
-from core import cache as result_cache  # noqa: E402
-from core import events as event_log  # noqa: E402
-from core import quickdrop  # noqa: E402
-from core.registry import DATA_ROOT, SUBSYSTEMS, SubsystemSpec  # noqa: E402
-from core.submission import SCHEMAS, build_predictions_zip, validate_submission  # noqa: E402
-from theme import T, css  # noqa: E402
 
 import core.cache as _core_cache  # noqa: E402
 import core.events as _core_events  # noqa: E402
@@ -68,13 +55,16 @@ import core.registry as _core_registry  # noqa: E402
 import core.submission as _core_submission  # noqa: E402
 import subsystems.generic.monitor as _generic_monitor  # noqa: E402
 
-for _m in (_core_events, _core_cache, _core_quickdrop, _core_registry, _core_submission, _generic_monitor,
-           charts, ui, livemap, insight, schematics):
-    _fresh(_m)
+import network as _network  # noqa: E402
+import theme as _theme  # noqa: E402
+
+_reload_project_modules((_core_events, _core_cache, _core_quickdrop, _core_registry, _core_submission,
+                         _generic_monitor, _theme, ui, charts, _network, livemap, insight, schematics))
 # rebind the names this script uses, in case a module object was replaced
 result_cache, event_log, quickdrop, monitor = _core_cache, _core_events, _core_quickdrop, _generic_monitor
 from core.registry import DATA_ROOT, SUBSYSTEMS, SubsystemSpec  # noqa: E402,F811
 from core.submission import SCHEMAS, build_predictions_zip, validate_submission  # noqa: E402,F811
+from theme import T, css  # noqa: E402,F811
 
 st.set_page_config(page_title="Nebula Wayside", page_icon="🚆", layout="wide")
 st.markdown(css(), unsafe_allow_html=True)
