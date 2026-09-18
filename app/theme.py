@@ -268,6 +268,15 @@ h1, h2, h3 {{ font-family: var(--font-sans); color: var(--ink-primary); letter-s
 .nw-tips {{ margin:0; padding-left:18px; font-size:14px; line-height:1.55; color:var(--ink-secondary); }}
 .nw-tips li {{ margin:4px 0; }}
 
+/* ---- transitions ---- */
+html {{ scroll-behavior: smooth; }}
+.block-container {{ animation: nw-rise .35s ease-out both; }}
+[data-testid="stTabs"] [role="tabpanel"] {{ animation: nw-rise .3s ease-out both; }}
+[data-testid="stExpander"] details summary, .stButton > button, a[data-testid="stPageLink-NavLink"] {{ transition: background .15s ease, transform .15s ease, border-color .15s ease; }}
+a[data-testid="stPageLink-NavLink"]:hover {{ transform: translateX(3px); }}
+[data-testid="stSegmentedControl"] button {{ transition: background .15s ease, color .15s ease; }}
+[data-testid="stDeckGlJsonChart"], [data-testid="stPlotlyChart"] {{ animation: nw-rise .4s ease-out both; }}
+
 /* ---- streamlit widget polish ---- */
 .stButton > button, .stDownloadButton > button {{ border-radius: var(--radius-md); font-weight: 600;
   border: 1px solid var(--line-control); }}

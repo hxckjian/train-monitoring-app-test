@@ -94,7 +94,7 @@ def weather_layers(weather: dict | None) -> list:
 
 
 def network_deck(df: pd.DataFrame, line: str | None, state: str, mode: str = "lines",
-                 weather: dict | None = None) -> pdk.Deck:
+                 weather: dict | None = None, view: pdk.ViewState | None = None) -> pdk.Deck:
     """Detailed map: line paths in official colours, stations coloured by zone or type,
     the chosen line lifted with a halo in the verdict colour."""
     d = df.copy()
@@ -119,6 +119,9 @@ def network_deck(df: pd.DataFrame, line: str | None, state: str, mode: str = "li
             layers.insert(0, pdk.Layer("ScatterplotLayer", data=sel, get_position="[lon, lat]",
                                        get_fill_color="halo", get_radius=520, opacity=0.3, stroked=False))
     layers = weather_layers(weather) + layers
+    if view is not None:
+        view = view  # explicit camera wins over the line-centred default
+        globals()["_last_view"] = view
     tooltip = {"html": "<b>{name}{label}</b><br/>{zone} {type} {level}<br/>{lines}",
                "style": {"backgroundColor": "#10151c", "color": "#f7f8fa", "fontSize": "12px"}}
     return pdk.Deck(layers=layers, initial_view_state=view, tooltip=tooltip,
@@ -285,7 +288,8 @@ def event_layers(agg: pd.DataFrame) -> list:
                       get_alignment_baseline='"center"')]
 
 
-def fleet_deck(df: pd.DataFrame, agg: pd.DataFrame, lines: list[str], weather: dict | None = None) -> pdk.Deck:
+def fleet_deck(df: pd.DataFrame, agg: pd.DataFrame, lines: list[str], weather: dict | None = None,
+               view: pdk.ViewState | None = None) -> pdk.Deck:
     """Line paths for the selected lines, event markers per station, weather underneath."""
     d = df.copy()
     d["color"] = [TYPE_COLOR.get(t, TYPE_COLOR["MRT"]) for t in d["type"]]
@@ -298,10 +302,8 @@ def fleet_deck(df: pd.DataFrame, agg: pd.DataFrame, lines: list[str], weather: d
     layers.append(pdk.Layer("ScatterplotLayer", data=d, get_position="[lon, lat]", get_fill_color="color",
                             get_radius=90, pickable=True, opacity=0.7))
     layers += event_layers(agg)
-    if not agg.empty:
-        view = pdk.ViewState(latitude=float(agg["lat"].mean()), longitude=float(agg["lon"].mean()), zoom=10.8)
-    else:
-        view = pdk.ViewState(latitude=1.352, longitude=103.82, zoom=10.7)
+    if view is None:
+        view = view_for(agg if not agg.empty else None)
     tooltip = {"html": "<b>{name}{station}</b><br/>{label}{zone} {type}<br/>{lines}",
                "style": {"backgroundColor": "#10151c", "color": "#f7f8fa", "fontSize": "12px"}}
     return pdk.Deck(layers=layers, initial_view_state=view, tooltip=tooltip,
@@ -367,3 +369,36 @@ def health_index(ev: pd.DataFrame) -> pd.DataFrame:
             r[k] = max(sub["state"], key=lambda x: rank.get(x, 0)) if len(sub) else "unknown"
         rows.append(r)
     return pd.DataFrame(rows, columns=cols).sort_values(["health", "last"], ascending=[True, False]).reset_index(drop=True)
+
+
+# ------------------------------------------------------------------ camera
+
+SINGAPORE = dict(latitude=1.352, longitude=103.82, zoom=10.6)
+
+
+def view_for(points: pd.DataFrame | None, duration_ms: int = 900) -> pdk.ViewState:
+    """Camera that fits the given points (lat/lon columns); whole island when empty.
+    deck.gl animates between view states when transition_duration is set."""
+    if points is None or len(points) == 0:
+        v = dict(SINGAPORE)
+    else:
+        lat0, lat1 = float(points["lat"].min()), float(points["lat"].max())
+        lon0, lon1 = float(points["lon"].min()), float(points["lon"].max())
+        span = max(lat1 - lat0, (lon1 - lon0) * 0.98, 0.01)
+        zoom = max(9.5, min(13.5, 11.3 - 2.2 * (span / 0.25 - 1)))   # ~island span 0.25° -> 11.3
+        v = dict(latitude=(lat0 + lat1) / 2, longitude=(lon0 + lon1) / 2, zoom=zoom)
+    return pdk.ViewState(**v, pitch=0, bearing=0, transition_duration=duration_ms,
+                         transition_interpolator="FlyToInterpolator")
+
+
+def affected_lines(ev: pd.DataFrame) -> list[str]:
+    """Lines that carry at least one fault or watch in the given events."""
+    if ev is None or ev.empty or "line" not in ev:
+        return []
+    bad = ev[ev["state"].isin(["alert", "watch"])].dropna(subset=["line"])
+    return [ln for ln in LINES if ln in set(bad["line"])]
+
+
+def stations_on(df: pd.DataFrame, lines: list[str]) -> pd.DataFrame:
+    names = {n for ln in lines for n in LINES.get(ln, ("", []))[1]}
+    return df[df["key"].isin(names)]

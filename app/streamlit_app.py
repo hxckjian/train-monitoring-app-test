@@ -157,6 +157,8 @@ def actions_panel(acts: list[dict], title: str = "What to do now") -> None:
              f'<b style="font-size:15px">{quickdrop.SUBSYSTEM_EMOJI.get(a["page"], "")} {a["action"]}</b>'
              f'<span class="muted" style="margin-left:auto;font-size:12px">{a["owner"]} · {a["subsystem"]}</span></div>'
              f'<div class="muted" style="font-size:13px;margin-top:6px">{a["why"]}</div></div>')
+        if a["page"] in PAGE_BY_KEY:
+            st.page_link(PAGE_BY_KEY[a["page"]], label=f"Open {a['subsystem']} →", icon=":material/arrow_forward:")
 
 
 def as_files(payload: list[tuple[str, bytes]]) -> list[io.BytesIO]:
@@ -344,6 +346,21 @@ def run_all(specs) -> None:
     bar.empty()
 
 
+def dash_map_view(df, ev, line, lines_selected=None):
+    """Camera choice shared by the maps: whole island, affected lines, or one line."""
+    affected = insight.affected_lines(ev)
+    labels = ["Whole Singapore"] + (["Affected lines"] if affected else []) + ["This line"]
+    pick = st.segmented_control("Map view", labels, default=st.session_state.get("dash_mapview", "Whole Singapore")
+                                if st.session_state.get("dash_mapview", "Whole Singapore") in labels else "Whole Singapore",
+                                key="dash_mapview", label_visibility="collapsed")
+    if pick == "Affected lines":
+        pts, focus = insight.stations_on(df, affected), affected
+    elif pick == "This line":
+        pts, focus = insight.stations_on(df, lines_selected or [line]), (lines_selected or [line])
+    else:
+        pts, focus = None, []
+    return insight.view_for(pts), focus, pick
+
 def overview_page() -> None:
     results = session_results()
     states = insight.fleet_state(results)
@@ -475,6 +492,7 @@ def overview_page() -> None:
         with c2:
             mode = st.segmented_control("Colour", ["Line", "Zone"], default="Line", key="dash_map_mode",
                                         label_visibility="collapsed") or "Line"
+        view, focus, pick = dash_map_view(df, log_all, line)
         with c3:
             zones = insight.zones_for_line(df, line)
             html(ui.chip(worst, {"ok": "All assessed systems normal", "watch": "Watch",
@@ -484,7 +502,10 @@ def overview_page() -> None:
             html(ui.empty("Station map unavailable", ["data/stations/AmendmenttoMP2014RailStation.geojson is missing."]))
         else:
             weather = livemap.fetch_weather()
-            st.pydeck_chart(insight.network_deck(df, line, worst, "zones" if mode == "Zone" else "lines", weather), height=520)
+            st.pydeck_chart(insight.network_deck(df, line, worst, "zones" if mode == "Zone" else "lines", weather, view), height=520)
+            if pick == "Affected lines":
+                st.caption("Showing the lines that carry a fault or watch in the selected data: " + ", ".join(focus)
+                           + ". Choose Whole Singapore to zoom back out.")
             legend = " &nbsp; ".join(
                 f'<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:{c};margin-right:4px"></span>{k}'
                 for k, (c, _) in livemap.LINES.items()) if mode == "Line" else " &nbsp; ".join(
@@ -574,6 +595,8 @@ def overview_page() -> None:
                 if x.status != "closed" and st.button("Close", key=f"close_{wi}_{x.id}", width="stretch"):
                     event_log.set_status(x.id, "closed", "closed from the dashboard")
                     st.rerun()
+                st.page_link({"door": PAGE_DOOR, "shm": PAGE_SHM, "rail": PAGE_RAIL, "acv": PAGE_ACV}[x.subsystem],
+                             label="Details →", icon=":material/open_in_new:")
         if len(rows) > 8:
             with st.expander(f"All {len(rows)} in this view"):
                 st.dataframe(rows[["time", "subsystem_name", "state", "status", "title", "train", "station", "detail"]],
@@ -596,7 +619,11 @@ def overview_page() -> None:
                                     f"{mean:.3f} ± {std:.3f}" if card else "—",
                                     f"{METRIC_SHORT[spec.key]}, cross-validated" if card else "not validated", spec.method,
                                     quickdrop.SUBSYSTEM_EMOJI[spec.key]))
-        st.caption("Each tile opens its page under Check a train; the charts live there, not here.")
+        links = {"door": PAGE_DOOR, "shm": PAGE_SHM, "rail": PAGE_RAIL, "acv": PAGE_ACV}
+        cols = st.columns(4, gap="small")
+        for col, spec in zip(cols, SUBSYSTEMS.values()):
+            with col:
+                st.page_link(links[spec.key], label=f"Open {spec.name} →", icon=":material/arrow_forward:")
     with tab_trends:
         if not tr:
             html(ui.empty("No trends yet", ["Trends need results. Run all, or one subsystem."]))
@@ -1133,9 +1160,12 @@ def fleet_page() -> None:
         if df.empty:
             html(ui.empty("Station map unavailable", ["data/stations/AmendmenttoMP2014RailStation.geojson is missing."]))
         else:
+            view, focus, pick = dash_map_view(df, ev, lines[0] if lines else "NSL", lines or None)
+            if pick == "Affected lines":
+                st.caption("Lines with a fault or watch in range: " + ", ".join(focus))
             crowd = livemap.fetch_crowd(key, lines[0]) if (key and lines) else None
             alerts = livemap.fetch_train_alerts(key) if key else None
-            deck = insight.fleet_deck(df, agg, lines, weather)
+            deck = insight.fleet_deck(df, agg, (focus if pick != "Whole Singapore" else lines), weather, view)
             deck.layers = insight.crowd_layer(crowd, df) + insight.alert_layer(alerts, df) + deck.layers
             st.pydeck_chart(deck, height=520)
             if crowd is not None:
@@ -1624,14 +1654,13 @@ then a drill-down per asset, with the network map as the shared frame. See `DESI
 PAGE_DASHBOARD = st.Page(overview_page, title="Dashboard", icon=":material/dashboard:", default=True)
 PAGE_FLEET = st.Page(fleet_page, title="Fleet view", icon=":material/map:", url_path="fleet")
 PAGE_DOOR = st.Page(door_page, title="Door", icon=":material/door_sliding:", url_path="door")
+PAGE_SHM = st.Page(shm_page, title="Structural health", icon=":material/architecture:", url_path="shm")
+PAGE_RAIL = st.Page(rail_page, title="Rail", icon=":material/train:", url_path="rail")
+PAGE_ACV = st.Page(acv_page, title="Air conditioning", icon=":material/ac_unit:", url_path="acv")
+PAGE_BY_KEY = {"door": PAGE_DOOR, "shm": PAGE_SHM, "rail": PAGE_RAIL, "acv": PAGE_ACV}
 pages = {
     "Overview": [PAGE_DASHBOARD, PAGE_FLEET],
-    "Check a train": [
-        PAGE_DOOR,
-        st.Page(shm_page, title="Structural health", icon=":material/architecture:", url_path="shm"),
-        st.Page(rail_page, title="Rail", icon=":material/train:", url_path="rail"),
-        st.Page(acv_page, title="Air conditioning", icon=":material/ac_unit:", url_path="acv"),
-    ],
+    "Check a train": [PAGE_DOOR, PAGE_SHM, PAGE_RAIL, PAGE_ACV],
     "New data": [
         st.Page(custom_page, title="Screen a new dataset", icon=":material/add_chart:", url_path="monitor"),
     ],
