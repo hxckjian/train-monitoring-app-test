@@ -51,10 +51,10 @@ app/streamlit_app.py  (pages, no modelling code) ◄──────┘
 
 | Page | What it does |
 |---|---|
-| Dashboard | dark, map-first: KPI cards, status-overview bar, trend, the network map with line paths, zones, live NEA weather (rain gauges, temperatures), events table with status pills and a Fault/Watch filter; tabs for subsystems, trends, zones and the training data. Opens on the cached run of the competition test data |
+| Dashboard | hero with live weather and the one-line fleet verdict, quick-drop uploader that routes any competition-format file to its subsystem, work queue (acknowledge / close), dark, map-first: KPI cards, status-overview bar, trend, the network map with line paths, zones, live NEA weather (rain gauges, temperatures), events table with status pills and a Fault/Watch filter; tabs for subsystems, trends, zones and the training data. Opens on the cached run of the competition test data |
 | Door | segment a stream, verdict card, cycle timeline, sustained-current scatter, per-cycle inspector, download |
 | Structural health | damage per file against D = 1, per-file cycle and damage-share profiles, stress envelope, download |
-| Fleet view | the four session verdicts on a live map of the rail network (PS2 station GeoJSON), with the LTA DataMall TrainServiceAlerts feed (user's own AccountKey, session only) and the public SGMRT channel |
+| Fleet view | the fleet event log filtered by time range (today to a year, or custom dates), line, subsystem and state: event clusters on the map, train health index, timeline, event table and CSV; live NEA weather, DataMall crowd density and service alerts (user's own AccountKey), SGMRT channel |
 | Rail | classify 1-second recordings, per-side axle-box energy grid, wavelength-domain spectrum from the measured speed, class probabilities, download |
 | Air conditioning | rank all eight cars by cabin-temperature excess over the other cars during cooling, CarRank bars, excess timeline, download |
 | Parameter monitor | label-free screen for a new dataset: peer comparison across units (the ACV method) or robust drift for one series; recipe for promoting it to a subsystem |
