@@ -123,7 +123,7 @@ def _process(f: Any, artifact: dict, evidence: bool) -> dict:
     try:
         frame = load_input(f)
         x = extract_features(frame)
-        if any("_wl_" in n for n in artifact["feature_names"]):
+        if any("wl_" in n for n in artifact["feature_names"]):
             x = x.assign(**wavelength_features(frame, clean_data(frame)))
         X = _feature_matrix(x, artifact)
         model = artifact["model"]

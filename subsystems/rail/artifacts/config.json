@@ -1,6 +1,6 @@
 {
   "model_version": "rail-v2",
-  "origin": "ported from PS3/final_streamlit_app (balanced RandomForest, 300 trees, max_features 0.7, seed 42); artifact sha256 5d97e135...9179; v2 = rf_0.7_leaf3 on base features, adopted by scripts/model_search.py (artifacts/benchmark.json)",
+  "origin": "ported from PS3/final_streamlit_app (balanced RandomForest, 300 trees, max_features 0.7, seed 42); artifact sha256 5d97e135...9179; v2 = rf_0.7_leaf3 on base features, adopted by scripts/model_search.py (artifacts/benchmark.json); note: the search's 'base' feature set = the ported features plus the measured speed (wl_speed_m_s)",
   "labels": [
     "Normal",
     "Side I",
@@ -60,6 +60,7 @@
     "fresh_shuffles_mean": 0.8134,
     "repeated_cv_mean": 0.8285,
     "repeated_cv_std": 0.0151,
-    "nested_search_estimate": 0.8034
+    "nested_search_estimate": 0.8034,
+    "features": "ported per-side statistics and spectral bands + measured speed from the 90-tooth pulse"
   }
 }
