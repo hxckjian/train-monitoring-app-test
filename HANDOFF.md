@@ -126,8 +126,12 @@ bound; a different door could be materially harder.
 ### 4.3 SHM — PARTIALLY DONE
 
 **Done:** `scripts/shm_rainflow_cache.py` has rainflow-counted all 80 files and
-cached them to `artifacts_cache/shm_{train,test}_cycles.npz` (~95 s total). Do
-not redo this.
+cached them to `artifacts_cache/shm_{train,test}_cycles.npz` (~95 s total).
+
+The cache is **gitignored** (large binaries). It exists on the original machine;
+on a fresh clone regenerate it once with
+`conda run -n nebula-ps3 --no-capture-output python scripts/shm_rainflow_cache.py`
+and then never again — the fitting step reads only the cache.
 
 Verified facts:
 - 581,120 samples per file, **identical across all files**. No header, one column.
