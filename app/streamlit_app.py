@@ -481,6 +481,19 @@ def overview_page() -> None:
                       f' &nbsp;·&nbsp; blue discs = rain gauges')
             html(f'<div style="font-size:12px;color:var(--ink-secondary);margin-top:6px">{legend}{wl}</div>')
 
+    # ---- first run: three steps, nothing to read
+    if not any(results.values()) and not len(log_all):
+        html(ui.steps([
+            ("Drop a file", "Any competition-format file above; the console works out which subsystem it is."),
+            ("Read the action", "Each verdict becomes one line: what to do, why, how urgent, who owns it."),
+            ("Track it", "Acknowledge, shelve or close it in the work queue; see it on the map in Fleet view."),
+        ]))
+        c1, c2 = st.columns([1, 1])
+        with c1:
+            st.page_link(PAGE_DOOR, label="Or start with a subsystem page →", icon=":material/door_sliding:")
+        with c2:
+            st.caption("The competition test run is one click away under Manage datasets.")
+
     # ---- decisions first: what to do, then why
     acts = decisions.recommend(results)
     actions_panel(acts)
@@ -495,7 +508,7 @@ def overview_page() -> None:
     q = log[log["state"].isin(["alert", "watch"])] if len(log) else log
     f1, f2, f3 = st.columns([1.6, 1.4, 2])
     with f1:
-        flt = st.segmented_control("Status", ["Open", "Acknowledged", "Closed", "All"], default="Open",
+        flt = st.segmented_control("Status", ["Open", "Acknowledged", "Shelved", "Closed", "All"], default="Open",
                                    key="wq_filter", label_visibility="collapsed") or "Open"
     with f2:
         wq_sub = st.multiselect("Subsystem", list(event_log.SUBSYSTEM_NAME.values()), default=[],
@@ -505,14 +518,17 @@ def overview_page() -> None:
         rows = rows[rows["subsystem_name"].isin(wq_sub)]
     rows = rows.sort_values(["severity", "time"], ascending=[False, False]) if len(rows) else rows
     with f3:
+        recent = int((pd.Timestamp(event_log.now()) - log["analysed_at"] <= pd.Timedelta(minutes=10)).sum()) if len(log) else 0
         st.caption(f"{int((q['status'] == 'open').sum()) if len(q) else 0} open · "
                    f"{int((q['status'] == 'acknowledged').sum()) if len(q) else 0} acknowledged · "
-                   f"{int((q['status'] == 'closed').sum()) if len(q) else 0} closed · from the fleet log")
+                   f"{int((q['status'] == 'shelved').sum()) if len(q) else 0} shelved · "
+                   f"{int((q['status'] == 'closed').sum()) if len(q) else 0} closed · "
+                   f"alarm load {recent} new in the last 10 min" + (" ⚠ above the 10-per-10-min guideline" if recent > 10 else ""))
     if not len(rows):
         html(ui.empty("Queue is clear", ["No faults or watches with this status. Run a subsystem page to add checks."]))
     else:
         for wi, x in enumerate(rows.head(8).itertuples()):
-            c1, c2, c3 = st.columns([4.2, 1.1, 1.1])
+            c1, c2, c3, c4 = st.columns([3.6, 1.0, 1.0, 1.0])
             with c1:
                 html(f'<div class="nw-panel" style="padding:12px 16px;margin-bottom:6px">'
                      f'<div class="h" style="display:flex;gap:10px;align-items:center">{ui.pill(x.state, ui.STATES[x.state][1])}'
@@ -530,6 +546,13 @@ def overview_page() -> None:
                 elif x.status == "closed":
                     html(ui.pill("ok", "closed"))
             with c3:
+                if x.status in ("open", "acknowledged") and st.button("Shelve 4 h", key=f"shelve_{wi}_{x.id}", width="stretch",
+                                                                    help="Hide it for four hours; it comes back by itself and stays visible under Shelved."):
+                    event_log.set_status(x.id, "shelved", "shelved for 4 h")
+                    st.rerun()
+                elif x.status == "shelved":
+                    html(ui.pill("unknown", "shelved"))
+            with c4:
                 if x.status != "closed" and st.button("Close", key=f"close_{wi}_{x.id}", width="stretch"):
                     event_log.set_status(x.id, "closed", "closed from the dashboard")
                     st.rerun()
@@ -537,8 +560,8 @@ def overview_page() -> None:
             with st.expander(f"All {len(rows)} in this view"):
                 st.dataframe(rows[["time", "subsystem_name", "state", "status", "title", "train", "station", "detail"]],
                              hide_index=True, width="stretch")
-    st.caption(f"Showing: {choice}. Acknowledge when someone owns it, close when the inspection is done. "
-               "Actions are kept beside the log, so a re-run of the same file keeps its status.")
+    st.caption(f"Showing: {choice}. Acknowledge when someone owns it, shelve to silence it for four hours, close when "
+               "the inspection is done. Every action is logged with a time and is visible to the next operator.")
 
     # ---- deeper tabs
     tab_glance, tab_trends, tab_zones = st.tabs(["Subsystems", "Trends", "Zones"])
@@ -701,6 +724,11 @@ def door_page() -> None:
             "cur_mean_mid": st.column_config.NumberColumn("Sustained mA", format="%.0f"),
         })
     download(spec, res["predictions"])
+    n1, n2 = st.columns(2)
+    with n1:
+        st.page_link(PAGE_DASHBOARD, label="← Back to what to do now", icon=":material/dashboard:")
+    with n2:
+        st.page_link(PAGE_FLEET, label="See it on the fleet map →", icon=":material/map:")
 
 
 def shm_page() -> None:
@@ -796,6 +824,11 @@ def shm_page() -> None:
                          "Share from top 0.1% of cycles", format="percent"),
                  })
     download(spec, res["predictions"])
+    n1, n2 = st.columns(2)
+    with n1:
+        st.page_link(PAGE_DASHBOARD, label="← Back to what to do now", icon=":material/dashboard:")
+    with n2:
+        st.page_link(PAGE_FLEET, label="See it on the fleet map →", icon=":material/map:")
 
 
 def pending_page(key: str, facts: list[str]) -> None:
@@ -905,6 +938,11 @@ def rail_page() -> None:
                      "p_Side II": st.column_config.ProgressColumn("P(Side II)", min_value=0.0, max_value=1.0, format="%.2f"),
                  })
     download(spec, res["predictions"])
+    n1, n2 = st.columns(2)
+    with n1:
+        st.page_link(PAGE_DASHBOARD, label="← Back to what to do now", icon=":material/dashboard:")
+    with n2:
+        st.page_link(PAGE_FLEET, label="See it on the fleet map →", icon=":material/map:")
 
 
 def acv_page() -> None:
@@ -988,6 +1026,11 @@ def acv_page() -> None:
     html(ui.section("Predictions"))
     st.dataframe(res["predictions"], hide_index=True, width="stretch")
     download(spec, res["predictions"])
+    n1, n2 = st.columns(2)
+    with n1:
+        st.page_link(PAGE_DASHBOARD, label="← Back to what to do now", icon=":material/dashboard:")
+    with n2:
+        st.page_link(PAGE_FLEET, label="See it on the fleet map →", icon=":material/map:")
 
 
 # ------------------------------------------------------------------ fleet
@@ -1570,11 +1613,13 @@ then a drill-down per asset, with the network map as the shared frame. See `DESI
 """)
 
 
+PAGE_DASHBOARD = st.Page(overview_page, title="Dashboard", icon=":material/dashboard:", default=True)
+PAGE_FLEET = st.Page(fleet_page, title="Fleet view", icon=":material/map:", url_path="fleet")
+PAGE_DOOR = st.Page(door_page, title="Door", icon=":material/door_sliding:", url_path="door")
 pages = {
-    "Monitor": [
-        st.Page(overview_page, title="Dashboard", icon=":material/dashboard:", default=True),
-        st.Page(fleet_page, title="Fleet view", icon=":material/map:", url_path="fleet"),
-        st.Page(door_page, title="Door", icon=":material/door_sliding:", url_path="door"),
+    "Overview": [PAGE_DASHBOARD, PAGE_FLEET],
+    "Check a train": [
+        PAGE_DOOR,
         st.Page(shm_page, title="Structural health", icon=":material/architecture:", url_path="shm"),
         st.Page(rail_page, title="Rail", icon=":material/train:", url_path="rail"),
         st.Page(acv_page, title="Air conditioning", icon=":material/ac_unit:", url_path="acv"),
@@ -1588,8 +1633,7 @@ pages = {
         st.Page(method_page, title="Method", icon=":material/schema:", url_path="method"),
     ],
 }
-import os as _os  # noqa: E402
-_test_page = _os.environ.get("NEBULA_TEST_PAGE")
+_test_page = os.environ.get("NEBULA_TEST_PAGE")
 if _test_page:
     _fn = {"": overview_page, "fleet": fleet_page, "door": door_page, "shm": shm_page, "rail": rail_page,
            "acv": acv_page, "monitor": custom_page, "validation": validation_page,

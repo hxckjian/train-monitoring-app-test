@@ -274,7 +274,8 @@ def seed_demo(results: dict, stations_by_line: dict[str, list[str]], days: int =
 # ------------------------------------------------------------------ alarm workflow
 
 ACTIONS_PATH = EVENTS_PATH.with_name(EVENTS_PATH.stem + "_actions.jsonl")
-STATUS = ("open", "acknowledged", "closed")
+STATUS = ("open", "acknowledged", "closed", "shelved")
+SHELVE_HOURS = 4  # EEMUA 191 guidance: shelving is temporary, at most a few hours, and visible
 
 
 def event_id(row) -> str:
@@ -288,8 +289,11 @@ def set_status(eid: str, status: str, note: str = "", by: str = "operator") -> N
     if status not in STATUS:
         raise ValueError(status)
     ACTIONS_PATH.parent.mkdir(exist_ok=True)
+    rec = {"id": eid, "status": status, "note": note, "by": by, "at": now().isoformat()}
+    if status == "shelved":
+        rec["until"] = (now() + timedelta(hours=SHELVE_HOURS)).isoformat()
     with open(ACTIONS_PATH, "a", encoding="utf-8") as f:
-        f.write(json.dumps({"id": eid, "status": status, "note": note, "by": by, "at": now().isoformat()}) + "\n")
+        f.write(json.dumps(rec) + "\n")
 
 
 def statuses() -> dict[str, dict]:
@@ -312,6 +316,10 @@ def with_status(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df.assign(id=[], status=[], note=[], status_at=[])
     acts = statuses()
+    # a shelved alarm comes back by itself when its shelf time is over
+    for eid, a in list(acts.items()):
+        if a.get("status") == "shelved" and a.get("until") and pd.Timestamp(a["until"]) < pd.Timestamp(now()):
+            acts[eid] = {**a, "status": "open", "note": "shelf expired"}
     out = df.copy()
     if "id" not in out or out["id"].isna().any():
         out["id"] = [event_id(r) for _, r in out.iterrows()]

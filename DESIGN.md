@@ -109,3 +109,22 @@ links back to the file, the verdict and the model card that produced it.
 that has no model yet: the same peer-comparison and robust-drift screens the
 validated models rest on, applied to any export, with the recipe for promoting
 it to a full subsystem once labels exist.
+
+
+## 8. Operator UX: what the standards say, and what changed
+
+Sources: [EEMUA 191 / ISA-18.2 alarm management](https://industrialmonitordirect.com/blogs/knowledgebase/industrial-alarm-system-standards-iec-62682-isa-182-and-eemua-191),
+[ISA-18.2 vs EEMUA 191](https://www.merobix.com/blog/isa-18-2-vs-eemua-191),
+[High Performance HMI principles](https://industrialmonitordirect.com/blogs/knowledgebase/high-performance-hmi-design-principles-and-implementation-guide),
+[Honeywell ASM: operator situation awareness](https://process.honeywell.com/content/dam/process/en/documents/document-lists/doc_asm-consortium/white-papers/March%2031%202015%20-%20Operator%20Situation%20Awareness%20and%20Delivering%20ASM%20compliant%20High%20Performance%20HMIs%20Failure%20Modes%20and%20Success%20Factors.pdf),
+[dashboard design principles](https://uxpilot.ai/blogs/dashboard-design-principles).
+
+| Principle | Applied as |
+|---|---|
+| Every alarm has a defined operator response, prioritised by consequence and time to act (ISA-18.2) | `core/decisions.py`: each verdict maps to one action with Now / Today / This week / Routine, a reason and an owner |
+| Acknowledge, shelve for a bounded time, keep shelved alarms visible and logged (EEMUA 191, 4 h) | work queue: Acknowledge, Shelve 4 h (auto-unshelve, listed under Shelved), Close; every action timestamped |
+| Alarm load should stay under about 10 new alarms per 10 minutes (EEMUA 191) | the queue shows new alarms in the last 10 minutes and flags the guideline when exceeded; duplicates are never logged |
+| Level 1 overview for situation awareness, Level 2 to act, Level 3 for detail (High Performance HMI) | Dashboard → subsystem page → per-item inspector; navigation grouped as Overview / Check a train / Evidence |
+| Perception, comprehension, projection (ASM) | status pills, plain-language reasons, SHM remaining-life and "getting worse" insights |
+| Top row KPIs, trends in the middle, tables at the bottom; operational dashboards serve immediate decisions | dashboard order: hero verdict → actions → work queue → map and trends → tables |
+| Reduce cognitive load; hide detail until needed | Operator view hides evidence charts; Engineer view shows them; "How to read this" on every subsystem |
