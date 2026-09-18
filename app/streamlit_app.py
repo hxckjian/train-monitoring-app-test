@@ -841,8 +841,8 @@ def custom_page() -> None:
         b = io.BytesIO(demo.read_bytes()); b.name = demo.name; up = b
     with st.spinner("Reading..."):
         df = monitor.load_table(up)
-    num = monitor.numeric_columns(df)
     tcol = monitor.guess_time_column(df)
+    num = monitor.numeric_columns(df, exclude=tcol)
     html(ui.kpis([("Rows", f"{len(df):,}", None), ("Columns", f"{df.shape[1]}", f"{len(num)} numeric"),
                   ("Time column", tcol or "none found", None)]))
     method = st.segmented_control("Method", ["Peer comparison across units", "Drift in one series"],
@@ -851,7 +851,7 @@ def custom_page() -> None:
         default = [c for c in num if "Indoor Average Temperature" in str(c)] or num[:8]
         units = st.multiselect("Columns that are comparable units (one per car, motor, sensor...)",
                                num, default=default[:8], key="generic_units")
-        label = st.text_input("What is a unit called?", value="Car" if default and "Car" in str(default[0]) else "Unit")
+        label = st.text_input("What is a unit called?", value="Car" if units and str(units[0]).startswith("Car") else "Unit")
         if len(units) < 2:
             st.caption("Pick at least two columns.")
             return
@@ -863,7 +863,7 @@ def custom_page() -> None:
                         f"label-free peer-relative excess · {len(units)} units · {len(df):,} rows", "Screen"))
         a, b = st.columns([1, 1.4], gap="medium")
         with a:
-            html(ui.car_rank([(str(r.unit).replace("Car ", "").split(" - ")[0], None if pd.isna(r.excess_mean) else float(r.excess_mean))
+            html(ui.car_rank([(str(r.label), None if pd.isna(r.excess_mean) else float(r.excess_mean))
                               for r in rank.itertuples()], "Bars normalise to the top unit."))
         with b:
             top = str(rank.iloc[0]["unit"])

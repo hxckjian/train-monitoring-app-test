@@ -47,8 +47,33 @@ def guess_time_column(df: pd.DataFrame) -> str | None:
     return None
 
 
-def numeric_columns(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if pd.to_numeric(df[c], errors="coerce").notna().mean() > 0.9]
+def numeric_columns(df: pd.DataFrame, exclude: str | None = None, min_fraction: float = 0.6) -> list[str]:
+    """Columns that are mostly numeric readings: datetimes, the time column and
+    identifiers (near-constant) are not measurements."""
+    out = []
+    for c in df.columns:
+        if c == exclude or pd.api.types.is_datetime64_any_dtype(df[c]):
+            continue
+        v = pd.to_numeric(df[c], errors="coerce")
+        if v.notna().mean() >= min_fraction and v.nunique(dropna=True) > 2:
+            out.append(c)
+    return out
+
+
+def short_names(units: list[str]) -> dict[str, str]:
+    """'Car 01 - Indoor Average Temperature' -> '01': strip the longest common
+    prefix and suffix so labels show only what differs between units."""
+    names = [str(u) for u in units]
+    if len(names) < 2:
+        return {u: str(u) for u in units}
+    import os
+    pre = os.path.commonprefix(names)
+    suf = os.path.commonprefix([n[::-1] for n in names])[::-1]
+    out = {}
+    for u, n in zip(units, names):
+        core = n[len(pre):len(n) - len(suf)] if len(n) > len(pre) + len(suf) else n
+        out[u] = core.strip(" -_:") or n
+    return out
 
 
 def peer_ranking(df: pd.DataFrame, units: list[str], min_points: int = 20,
@@ -66,6 +91,7 @@ def peer_ranking(df: pd.DataFrame, units: list[str], min_points: int = 20,
         rows.append({"unit": u, "excess_mean": float(delta.mean()), "excess_q90": float(delta.quantile(0.9)),
                      "hot_fraction": float((delta > hot_threshold).mean()), "points": int(len(delta))})
     out = pd.DataFrame(rows)
+    out.insert(1, "label", out["unit"].map(short_names(units)))
     out["rank"] = out["excess_mean"].rank(ascending=False, method="first", na_option="bottom").astype(int)
     return out.sort_values("rank").reset_index(drop=True)
 
@@ -96,7 +122,7 @@ def verdict_for_ranking(rank: pd.DataFrame, unit_label: str) -> tuple[str, str, 
     gap = float(top["excess_mean"] - second["excess_mean"])
     spread = float(r["excess_mean"].std() or 1e-9)
     if gap > spread:
-        return ("alert", f"{unit_label} {top['unit']} stands apart from its peers",
-                f"Mean excess {top['excess_mean']:+.2f} against {second['unit']} at {second['excess_mean']:+.2f}; the gap exceeds the spread across units.")
-    return ("watch", f"{unit_label} {top['unit']} ranks first, but the margin is narrow",
-            f"Gap to {second['unit']} is {gap:.2f} against a spread of {spread:.2f}. Treat the top two as candidates.")
+        return ("alert", f"{unit_label} {top['label']} stands apart from its peers",
+                f"Mean excess {top['excess_mean']:+.2f} against {unit_label} {second['label']} at {second['excess_mean']:+.2f}; the gap exceeds the spread across units.")
+    return ("watch", f"{unit_label} {top['label']} ranks first, but the margin is narrow",
+            f"Gap to {unit_label} {second['label']} is {gap:.2f} against a spread of {spread:.2f}. Treat the top two as candidates.")
