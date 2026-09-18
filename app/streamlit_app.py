@@ -20,6 +20,7 @@ for p in (str(PROJECT_ROOT), str(APP_DIR)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import streamlit as st  # noqa: E402
 
