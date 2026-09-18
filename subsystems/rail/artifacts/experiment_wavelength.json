@@ -1,0 +1,108 @@
+{
+  "protocol": "Pre-registered Rail experiment: do wavelength-domain features beat the ported baseline?\n\nProtocol (fixed before running):\n- Same 272 files, same 5 grouped folds as the ported model (fold ids from\n  subsystems/rail/artifacts/oof.csv), same side-swap augmentation inside the\n  training folds only, same classifier (RandomForest 300 trees, max_features 0.7,\n  class_weight balanced, seed 42).\n- Feature sets compared: baseline (ported), baseline + wavelength, wavelength only.\n- Decision rule: adopt baseline + wavelength only if its macro F1 is higher on\n  the original folds AND on 3 fresh grouped shuffles (seeds 1, 2, 3).\n- Everything is written to subsystems/rail/artifacts/experiment_wavelength.json.\n  A null result is reported as a null result.\n\n    .venv/Scripts/python -m scripts.rail_wavelength_experiment",
+  "n_files": 272,
+  "n_features": {
+    "baseline": 394,
+    "baseline_plus_wavelength": 457,
+    "wavelength_only": 63
+  },
+  "original_folds": {
+    "baseline": {
+      "pooled_macro_f1": 0.8192976995866573,
+      "per_fold": [
+        0.8260869565217391,
+        0.7936507936507936,
+        0.7387853692201518,
+        0.8962962962962964,
+        0.88994708994709
+      ],
+      "mean": 0.8289533011272141,
+      "std": 0.05939707094270448
+    },
+    "baseline_plus_wavelength": {
+      "pooled_macro_f1": 0.8151280389892103,
+      "per_fold": [
+        0.7872271098077549,
+        0.7936507936507936,
+        0.7387853692201518,
+        0.9298245614035089,
+        0.88994708994709
+      ],
+      "mean": 0.8278869848058598,
+      "std": 0.07072081206037323
+    },
+    "wavelength_only": {
+      "pooled_macro_f1": 0.6864973262032086,
+      "per_fold": [
+        0.534647550776583,
+        0.7517410126105778,
+        0.6685185185185185,
+        0.7361111111111112,
+        0.7796647796647797
+      ],
+      "mean": 0.694136594536314,
+      "std": 0.08773624151167922
+    }
+  },
+  "fresh_shuffles": {
+    "baseline": {
+      "pooled_by_seed": [
+        0.7874741200828157,
+        0.8322381711855397,
+        0.8205794061522828
+      ],
+      "mean": 0.8134305658068794
+    },
+    "baseline_plus_wavelength": {
+      "pooled_by_seed": [
+        0.7874741200828157,
+        0.837783605882958,
+        0.8350931677018633
+      ],
+      "mean": 0.8201169645558789
+    }
+  },
+  "decision": {
+    "adopt_wavelength": false,
+    "chosen": "baseline",
+    "reason": "original folds 0.8151 vs 0.8193; fresh shuffles 0.8201 vs 0.8134"
+  },
+  "chosen_classification": {
+    "Normal": {
+      "precision": 0.9911111111111112,
+      "recall": 0.9529914529914529,
+      "f1-score": 0.971677559912854,
+      "support": 234.0
+    },
+    "Side I": {
+      "precision": 0.7142857142857143,
+      "recall": 0.7142857142857143,
+      "f1-score": 0.7142857142857143,
+      "support": 14.0
+    },
+    "Side II": {
+      "precision": 0.6666666666666666,
+      "recall": 0.9166666666666666,
+      "f1-score": 0.7719298245614035,
+      "support": 24.0
+    },
+    "accuracy": 0.9375,
+    "macro avg": {
+      "precision": 0.7906878306878307,
+      "recall": 0.8613146113146112,
+      "f1-score": 0.8192976995866573,
+      "support": 272.0
+    },
+    "weighted avg": {
+      "precision": 0.9482352941176471,
+      "recall": 0.9375,
+      "f1-score": 0.940804650033388,
+      "support": 272.0
+    }
+  },
+  "overfit_check": {
+    "in_sample_macro_f1": 0.9349436392914653,
+    "out_of_fold_macro_f1": 0.8192976995866573,
+    "note": "a random forest fits its training set almost perfectly; the gap is expected and the out-of-fold number is the one to trust"
+  }
+}

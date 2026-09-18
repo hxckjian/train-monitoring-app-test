@@ -1,20 +1,62 @@
 {
   "model_version": "rail-v1",
   "origin": "ported from PS3/final_streamlit_app (balanced RandomForest, 300 trees, max_features 0.7, seed 42); artifact sha256 5d97e135...9179",
-  "labels": ["Normal", "Side I", "Side II"],
+  "labels": [
+    "Normal",
+    "Side I",
+    "Side II"
+  ],
   "n_training_files": 272,
-  "class_counts": {"Normal": 234, "Side I": 14, "Side II": 24},
+  "class_counts": {
+    "Normal": 234,
+    "Side I": 14,
+    "Side II": 24
+  },
   "sample_rate_hz": 10000,
-  "wheel": {"teeth": 90, "diameter_m": 0.85},
+  "wheel": {
+    "teeth": 90,
+    "diameter_m": 0.85
+  },
   "validation": {
-    "split": "5 stratified folds over 272 files, whole files kept together, the 2 duplicate feature rows grouped; side-swap augmentation applied inside training folds only",
+    "split": "5 stratified folds over 272 files, whole files kept together, the 2 duplicate feature rows grouped; side-swap augmentation applied inside training folds only; re-run of the selected recipe on the same folds in this workspace (the original build's 0.8524 was the maximum over five candidates)",
     "metric": "macro F1 over Normal / Side I / Side II (Rail Info Kit Section 4)",
-    "mean_score": 0.8551,
-    "std_score": 0.0502,
-    "pooled_out_of_fold_score": 0.8524,
-    "folds": [0.7925, 0.8188, 0.8483, 0.8788, 0.9372],
-    "per_class_f1": {"Normal": 0.9744, "Side I": 0.7200, "Side II": 0.8627},
-    "side_i_recall": 0.6429,
-    "always_normal_baseline": 0.3083
+    "mean_score": 0.829,
+    "std_score": 0.0594,
+    "pooled_out_of_fold_score": 0.8193,
+    "folds": [
+      0.8261,
+      0.7937,
+      0.7388,
+      0.8963,
+      0.8899
+    ],
+    "per_class_f1": {
+      "Normal": 0.9717,
+      "Side I": 0.7143,
+      "Side II": 0.7719
+    },
+    "side_i_recall": 0.7143,
+    "always_normal_baseline": 0.3083,
+    "in_sample_score": 0.9349,
+    "original_build_reported": {
+      "mean_score": 0.8551,
+      "std_score": 0.0502,
+      "pooled_out_of_fold_score": 0.8524,
+      "folds": [
+        0.7925,
+        0.8188,
+        0.8483,
+        0.8788,
+        0.9372
+      ],
+      "per_class_f1": {
+        "Normal": 0.9744,
+        "Side I": 0.72,
+        "Side II": 0.8627
+      },
+      "side_i_recall": 0.6429,
+      "note": "best of 5 candidates selected on these folds in the original build"
+    },
+    "fresh_shuffles_mean": 0.8134
   }
 }

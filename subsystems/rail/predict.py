@@ -23,6 +23,7 @@ import pandas as pd
 from .features import (
     LABELS, SAMPLE_RATE_HZ, _SENSOR_RE, clean_data, extract_features, load_input,
 )
+from .wavelength import wavelength_features
 
 MODULE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = MODULE_DIR / "artifacts" / "model.joblib"
@@ -122,6 +123,8 @@ def _process(f: Any, artifact: dict, evidence: bool) -> dict:
     try:
         frame = load_input(f)
         x = extract_features(frame)
+        if any("_wl_" in n for n in artifact["feature_names"]):
+            x = x.assign(**wavelength_features(frame, clean_data(frame)))
         X = _feature_matrix(x, artifact)
         model = artifact["model"]
         label = str(model.predict(X)[0])

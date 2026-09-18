@@ -51,12 +51,14 @@ app/streamlit_app.py  (pages, no modelling code) ◄──────┘
 
 | Page | What it does |
 |---|---|
-| Overview | four subsystem tiles with live/pending status and the cross-validated score |
+| Dashboard | status strip with session verdicts, Run all, tabs: network map (line paths, zones, halo in the worst verdict colour), top events ranked by severity, trends, zone tiles |
 | Door | segment a stream, verdict card, cycle timeline, sustained-current scatter, per-cycle inspector, download |
 | Structural health | damage per file against D = 1, per-file cycle and damage-share profiles, stress envelope, download |
 | Fleet view | the four session verdicts on a live map of the rail network (PS2 station GeoJSON), with the LTA DataMall TrainServiceAlerts feed (user's own AccountKey, session only) and the public SGMRT channel |
 | Rail | classify 1-second recordings, per-side axle-box energy grid, wavelength-domain spectrum from the measured speed, class probabilities, download |
 | Air conditioning | rank all eight cars by cabin-temperature excess over the other cars during cooling, CarRank bars, excess timeline, download |
+| Parameter monitor | label-free screen for a new dataset: peer comparison across units (the ACV method) or robust drift for one series; recipe for promoting it to a subsystem |
+| Validation | per-fold scores with mean, sd, naive baseline and in-sample line for every subsystem; the Rail pre-registered experiment table |
 | Submission | runs every live model over the test inputs, validates, builds and saves `predictions.zip` (all four subsystems) |
 | Method | architecture diagram, validation table, principles |
 

@@ -25,7 +25,9 @@ import streamlit as st  # noqa: E402
 
 import charts  # noqa: E402
 import components as ui  # noqa: E402
+import insight  # noqa: E402
 import livemap  # noqa: E402
+from subsystems.generic import monitor  # noqa: E402
 from core.registry import SUBSYSTEMS, SubsystemSpec  # noqa: E402
 from core.submission import SCHEMAS, build_predictions_zip, validate_submission  # noqa: E402
 from theme import T, css  # noqa: E402
@@ -128,37 +130,156 @@ def evidence_line(card: dict, metric_short: str) -> str:
 
 # =================================================================== pages
 
+def session_results() -> dict:
+    return {k: st.session_state.get(f"{k}_result") for k in SUBSYSTEMS}
+
+
+def run_all(specs) -> None:
+    """Run every live model on the provided competition test inputs, into session state."""
+    bar = st.progress(0.0, text="Starting...")
+    for i, spec in enumerate(specs):
+        inputs = spec.test_inputs()
+        files = as_files([(p.name, p.read_bytes()) for p in inputs])
+
+        def tick(j, n, name, _s=spec, _i=i, _k=len(specs)):
+            bar.progress((_i + j / n) / _k, text=f"{_s.name}: {name} ({j}/{n})")
+        try:
+            res = spec.module.analyze(files, progress=tick) if spec.key != "door" else spec.module.analyze(files)
+            st.session_state[f"{spec.key}_result"] = res
+        except (ValueError, FileNotFoundError) as exc:
+            st.error(f"{spec.name}: {exc}")
+    bar.empty()
+
+
 def overview_page() -> None:
+    results = session_results()
+    states = insight.fleet_state(results)
     html(ui.header("Train condition monitoring", "Fleet condition",
-                   "Four independent health checks on a rail vehicle, each with its own "
-                   "validated model. Pick a subsystem, give it a file, and read the verdict."))
-    html(ui.steps([
-        ("Pick a subsystem", "Door, structural health, rail corrugation or air conditioning."),
-        ("Give it data", "Use the provided competition test data, or drop in your own file."),
-        ("Read the verdict", "A status, what it means, what to do, and the evidence behind it."),
-        ("See it on the network", "Fleet view puts every verdict on the live rail map next to "
-                                  "the current service alerts."),
-    ]))
-    html(ui.section("Subsystems"))
+                   "Four independent health checks on a rail vehicle, each with its own validated "
+                   "model, summarised on one screen with the network they run on."))
+
+    # ---- status strip
     cols = st.columns(4, gap="small")
     for col, spec in zip(cols, SUBSYSTEMS.values()):
-        card = spec.model_card()
-        color = T(IDENTITY[spec.key])
+        card, state = spec.model_card(), states[spec.key]
+        v = card["validation"] if card else {}
+        mean = v.get("mean_iou_weighted_f1", v.get("mean_score"))
+        std = v.get("std_iou_weighted_f1", v.get("std_score"))
+        word = {"ok": "Normal", "watch": "Watch", "alert": "Fault found", "unknown": "Not assessed"}[state]
         with col:
-            if card:
-                v = card["validation"]
-                mean = v.get("mean_iou_weighted_f1", v.get("mean_score"))
-                std = v.get("std_iou_weighted_f1", v.get("std_score"))
-                metric = METRIC_SHORT[spec.key]
-                html(ui.system_tile(color, "ok", "Model live", spec.name, spec.question,
-                                    f"{mean:.3f} ± {std:.3f}", f"{metric}, cross-validated",
-                                    spec.method))
-            else:
-                html(ui.system_tile(color, "unknown", "Model pending", spec.name,
-                                    spec.question, "—", "not yet validated", spec.method))
-    st.caption("Scores are the official competition metric on held-out folds of the "
-               "training data, with the split chosen to prevent leakage. They are estimates, "
-               "not the final test score.")
+            html(ui.system_tile(T(IDENTITY[spec.key]), state, word, spec.name, spec.question,
+                                f"{mean:.3f} ± {std:.3f}" if card else "—",
+                                f"{METRIC_SHORT[spec.key]}, cross-validated" if card else "not validated",
+                                spec.method))
+    live = [sp for sp in SUBSYSTEMS.values() if sp.available and sp.test_inputs()]
+    not_run = [sp for sp in live if results.get(sp.key) is None]
+    c1, c2 = st.columns([1, 3])
+    with c1:
+        if live and st.button(f"Run all {len(live)} on the provided test data", type="primary",
+                              ):
+            run_all(live)
+            st.rerun()
+    with c2:
+        st.caption("Runs every model on the competition test inputs (about 1 minute; Rail is the slow one) "
+                   "so this dashboard, the Fleet view and the Submission page all fill in. "
+                   "Each subsystem page can also be run on its own or on an upload.")
+
+    ev = insight.events(results)
+    tr = insight.trends(results)
+    tab_map, tab_events, tab_trends, tab_zones = st.tabs(
+        ["Network map", f"Top events ({len(ev)})", "Trends", "Zones"])
+
+    with tab_map:
+        df = insight.with_zones(livemap.stations())
+        a, b, c = st.columns([1, 1, 2])
+        with a:
+            line = st.selectbox("Line of the assessed train", list(livemap.LINES), key="fleet_line",
+                                format_func=lambda k: LINE_NAMES[k])
+        with b:
+            mode = st.segmented_control("Colour stations by", ["Line", "Zone"], default="Line",
+                                        key="dash_map_mode") or "Line"
+        with c:
+            worst = max(states.values(), key=lambda x: {"alert": 3, "watch": 2, "ok": 1, "unknown": 0}[x])
+            zones = insight.zones_for_line(df, line)
+            html(ui.chip(worst, {"ok": "All assessed systems normal", "watch": "Watch",
+                                 "alert": "Fault found on this train", "unknown": "Nothing assessed yet"}[worst],
+                         f"{LINE_NAMES[line]} · runs through {', '.join(zones) if zones else '—'}"))
+        if df.empty:
+            html(ui.empty("Station map unavailable", ["data/stations/AmendmenttoMP2014RailStation.geojson is missing."]))
+        else:
+            st.pydeck_chart(insight.network_deck(df, line, worst, "zones" if mode == "Zone" else "lines"), height=540)
+            legend = " &nbsp; ".join(
+                f'<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:{c};margin-right:4px"></span>{k}'
+                for k, (c, _) in livemap.LINES.items()) if mode == "Line" else " &nbsp; ".join(
+                f'<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgb({",".join(map(str, z["rgb"]))});margin-right:4px"></span>{k}'
+                for k, z in insight.ZONES.items())
+            html(f'<div style="font-size:12px;color:var(--ink-secondary);margin-top:6px">{legend}</div>')
+            st.caption("Lines are drawn through the station centroids the 2014 Master Plan amendment file "
+                       "carries; a few newer stations are absent, so some paths cut corners. The halo "
+                       "on the chosen line is the worst verdict in this session. Zones are approximate "
+                       "planning regions from coordinates.")
+
+    with tab_events:
+        if not ev:
+            html(ui.empty("No events yet", ["Run a subsystem, or press Run all above. Every flagged cycle, "
+                                            "file, recording and car appears here ranked by severity."]))
+        else:
+            html(ui.section("Top 3"))
+            for i, e in enumerate(insight.top_events(ev, 3), 1):
+                html(ui.fleet_row(e["state"], f"#{i} · {e['subsystem']} · severity {e['severity']:.2f}",
+                                  e["title"], e["detail"]))
+            if len(ev) > 3:
+                with st.expander(f"All {len(ev)} events"):
+                    st.dataframe(pd.DataFrame(ev)[["severity", "state", "subsystem", "title", "detail"]],
+                                 hide_index=True, width="stretch",
+                                 column_config={"severity": st.column_config.ProgressColumn(
+                                     "Severity", min_value=0.0, max_value=1.0, format="%.2f")})
+            st.caption("Top 3 shows the worst event of each subsystem first. Severity is a display ordering, "
+                       "not a probability: it combines the model's own "
+                       "confidence with how far a value sits past its watch band, so different "
+                       "subsystems can share one list.")
+
+    with tab_trends:
+        if not tr:
+            html(ui.empty("No trends yet", ["Trends need results. Run all, or one subsystem."]))
+        a, b = st.columns(2, gap="medium")
+        if "door" in tr:
+            with a:
+                html(ui.section("Door · over the stream"))
+                plot(charts.door_trend(tr["door"]))
+        if "acv" in tr:
+            with b:
+                html(ui.section("Air conditioning · top car, day by day"))
+                plot(charts.acv_trend(tr["acv"]))
+        if "rail" in tr:
+            html(ui.section("Rail · corrugation probability across recordings"))
+            plot(charts.rail_trend(tr["rail"]))
+        if "shm" in tr:
+            html(ui.section("Structural health · damage by measurement point"))
+            plot(charts.shm_damage(tr["shm"].rename(columns={"damage": "damage"})))
+        if tr:
+            st.caption("The competition data are single recordings, so trends run over the time "
+                       "inside each recording or across its files. With a live feed the same "
+                       "charts run over days.")
+
+    with tab_zones:
+        df = insight.with_zones(livemap.stations())
+        if df.empty:
+            st.caption("Station file missing.")
+        else:
+            zs = insight.zone_summary(df)
+            line = st.session_state.get("fleet_line", "NSL")
+            mine = set(insight.zones_for_line(df, line))
+            cols = st.columns(5, gap="small")
+            for col, r in zip(cols, zs.itertuples()):
+                with col:
+                    rgb = insight.ZONES[r.zone]["rgb"]
+                    html(ui.system_tile(f"rgb({rgb[0]},{rgb[1]},{rgb[2]})",
+                                        worst if r.zone in mine else "unknown",
+                                        "On this train's line" if r.zone in mine else "No assessed train",
+                                        r.zone, r.hint, f"{r.stations}", "stations", f"lines: {r.lines}"))
+            st.caption("A subsystem verdict belongs to a train, not a place. Zones light up through "
+                       "the line you selected on the map; a position log would pin it to a section.")
 
 
 def door_page() -> None:
@@ -632,6 +753,147 @@ def fleet_page() -> None:
                "every verdict above comes only from the uploaded sensor data.")
 
 
+def validation_page() -> None:
+    html(ui.header("Evidence", "How the numbers were validated",
+                   "Every score on this console is the official competition metric on data the model "
+                   "never saw, with the split chosen so nothing can leak, the spread across folds shown, "
+                   "and the in-sample score alongside so overfitting is visible rather than hidden."))
+    html(ui.steps([
+        ("Split so it cannot leak", "Door by contiguous time blocks; SHM by file with constants fitted in-fold; "
+                                    "Rail by file with duplicate rows grouped; ACV by whole case."),
+        ("Score with the judge's formula", "scoring/metrics.py reimplements all four; 39 tests pin them to the Info Kit worked examples."),
+        ("Report the spread", "Mean and standard deviation across folds, never a single lucky split."),
+        ("Check for overfitting", "In-sample against out-of-fold. A large gap on a flexible model is expected; the out-of-fold number is the one that ships."),
+    ]))
+    for spec in SUBSYSTEMS.values():
+        card = spec.model_card()
+        if not card:
+            continue
+        v = card["validation"]
+        html(ui.section(f"{spec.name} · model {card['model_version']}"))
+        if spec.key == "door":
+            folds = [f["iou_weighted_f1"] for f in v["folds"]]
+            mean, std, base, ins = v["mean_iou_weighted_f1"], v["std_iou_weighted_f1"], 0.7273, None
+            note = ("One door, one recording, 110 cycles. Any gap threshold from 0.05 s to 5 s recovers the "
+                    "same 110 segments, so the score reduces to per-cycle classification. Treat 0.99 as an upper bound.")
+        elif spec.key == "shm":
+            folds = [f["score"] for f in v["folds"]]
+            mean, std, base, ins = v["mean_score"], v["std_score"], 0.085, 0.9739
+            note = (f"Two-parameter physics fit; m stays within {v['m_range_across_folds']} across folds and pinning "
+                    f"m = 5 gives {v['fixed_m5_mean_score']:.4f}. In-sample {ins:.4f} versus cross-validated "
+                    f"{mean:.4f}: a 0.001 gap, which is what a model that cannot overfit looks like.")
+        elif spec.key == "rail":
+            folds, mean, std = v["folds"], v["mean_score"], v["std_score"]
+            base, ins = v.get("always_normal_baseline"), v.get("in_sample_score")
+            note = (f"Pooled out-of-fold macro F1 {v['pooled_out_of_fold_score']:.4f}; per class "
+                    + ", ".join(f"{k} {x:.2f}" for k, x in v["per_class_f1"].items())
+                    + f". Side I recall {v['side_i_recall']:.2f} is the known weakness: 14 files only."
+                    + (f" In-sample {ins:.3f}: the forest memorises its training set, so only the fold scores count."
+                       if ins else ""))
+        else:
+            ranks = list(v["per_case_rank"].values())
+            folds = [(8 - (r - 1)) / 8 for r in ranks]
+            mean, std, base, ins = v["mean_score"], v["std_score"], v["random_ranking_baseline"], None
+            note = ("A fixed rule with no fitted parameters, so nothing can be tuned to the six answers. "
+                    "Case 04 (the 63-parameter file) ranks the true car second; the rest rank it first.")
+        a, b = st.columns([1.4, 1], gap="medium")
+        with a:
+            plot(charts.fold_scores(folds, mean, std, base, METRIC_SHORT[spec.key], ins))
+        with b:
+            html(ui.kpis([(METRIC_SHORT[spec.key], f"{mean:.4f}", f"± {std:.4f} across {len(folds)} folds"),
+                          ("Naive baseline", f"{base:.3f}" if base is not None else "—", None)]))
+            st.markdown(f"**Split.** {v['split']}")
+            st.caption(note)
+    exp = PROJECT_ROOT / "subsystems" / "rail" / "artifacts" / "experiment_wavelength.json"
+    if exp.exists():
+        import json as _json
+        r = _json.loads(exp.read_text(encoding="utf-8"))
+        html(ui.section("Rail refinement · pre-registered experiment"))
+        d = r["decision"]
+        html(ui.chip("ok" if d["adopt_wavelength"] else "watch",
+                     "Wavelength features adopted" if d["adopt_wavelength"] else "Baseline kept (null result)",
+                     d["reason"]))
+        rows = [{"feature set": k, "n features": r["n_features"][k],
+                 "original folds (pooled)": f"{x['pooled_macro_f1']:.4f}",
+                 "mean ± sd": f"{x['mean']:.4f} ± {x['std']:.4f}",
+                 "fresh shuffles ×3": (f"{r['fresh_shuffles'][k]['mean']:.4f}" if k in r["fresh_shuffles"] else "—")}
+                for k, x in r["original_folds"].items()]
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+        st.caption("Decision rule fixed before running: adopt only if better on the original folds and on three "
+                   "fresh grouped shuffles. Same classifier, same augmentation, same 272 files.")
+
+
+def custom_page() -> None:
+    html(ui.header("Extend", "Parameter monitor",
+                   "Screen a new parameter before it has labels. Upload any sensor export, point at the "
+                   "columns, and get the same label-free peer comparison the air-conditioning model "
+                   "uses, or a robust drift score for a single series. When labels arrive, promote it "
+                   "to a full subsystem with the recipe on the Method page."))
+    up = st.file_uploader("Drop a .csv or .xlsx export", type=["csv", "xlsx"], key="generic_upload")
+    if not up:
+        st.caption("Try it on a provided ACV case: it recovers the same ranking as the validated model.")
+        provided = SUBSYSTEMS["acv"].test_inputs()
+        if provided and st.button("Use acv_test_case.xlsx"):
+            st.session_state["generic_demo"] = provided[0]
+        demo = st.session_state.get("generic_demo")
+        if demo is None:
+            return
+        b = io.BytesIO(demo.read_bytes()); b.name = demo.name; up = b
+    with st.spinner("Reading..."):
+        df = monitor.load_table(up)
+    num = monitor.numeric_columns(df)
+    tcol = monitor.guess_time_column(df)
+    html(ui.kpis([("Rows", f"{len(df):,}", None), ("Columns", f"{df.shape[1]}", f"{len(num)} numeric"),
+                  ("Time column", tcol or "none found", None)]))
+    method = st.segmented_control("Method", ["Peer comparison across units", "Drift in one series"],
+                                  default="Peer comparison across units", key="generic_method")
+    if method == "Peer comparison across units":
+        default = [c for c in num if "Indoor Average Temperature" in str(c)] or num[:8]
+        units = st.multiselect("Columns that are comparable units (one per car, motor, sensor...)",
+                               num, default=default[:8], key="generic_units")
+        label = st.text_input("What is a unit called?", value="Car" if default and "Car" in str(default[0]) else "Unit")
+        if len(units) < 2:
+            st.caption("Pick at least two columns.")
+            return
+        rank = monitor.peer_ranking(df, units)
+        state, title, meaning = monitor.verdict_for_ranking(rank, label)
+        html(ui.verdict(state, "Parameter monitor", title, meaning,
+                        f"Inspect {label} {rank.iloc[0]['unit']} first. This is a ranking, not a probability; "
+                        "collect labelled cases to validate it.",
+                        f"label-free peer-relative excess · {len(units)} units · {len(df):,} rows", "Screen"))
+        a, b = st.columns([1, 1.4], gap="medium")
+        with a:
+            html(ui.car_rank([(str(r.unit).replace("Car ", "").split(" - ")[0], None if pd.isna(r.excess_mean) else float(r.excess_mean))
+                              for r in rank.itertuples()], "Bars normalise to the top unit."))
+        with b:
+            top = str(rank.iloc[0]["unit"])
+            plot(charts.generic_excess(monitor.peer_excess_series(df, units, tcol), units, top))
+        st.dataframe(rank, hide_index=True, width="stretch")
+        st.download_button("Download ranking CSV", rank.to_csv(index=False).encode(), "parameter_ranking.csv", "text/csv")
+    else:
+        col = st.selectbox("Series", num, key="generic_series")
+        window = st.slider("Window (rows)", 10, 500, 50, key="generic_window")
+        d = monitor.drift_screen(df[col], window)
+        worst = d["robust_z"].abs().max()
+        state = "alert" if worst >= 3 else "watch" if worst >= 2 else "ok"
+        html(ui.verdict(state, "Parameter monitor",
+                        f"Largest drift {worst:.1f} MAD units" if np.isfinite(worst) else "Series too short",
+                        "Each rolling window is compared with the whole series' median, scaled by the median "
+                        "absolute deviation, so one outlier cannot move the baseline.",
+                        "Above 3 is a step or sustained drift worth a look; between 2 and 3 keep watching.",
+                        f"robust drift screen · window {window} rows", "Screen"))
+        plot(charts.generic_drift(d))
+    with st.expander("How to promote a parameter to a full subsystem"):
+        st.markdown("""
+1. **Write the truth down first.** Columns, sampling rate, timestamp format, class counts, sizes, parsing traps. `PROJECT-STATE.md` is the template.
+2. **Transcribe the scoring formula and test it** in `scoring/metrics.py` before any model exists.
+3. **Choose the split that cannot leak**: by time block, by file, or by whole case, never by row.
+4. **Pre-register** the measure, the split and the success criterion. Report a null as a null.
+5. Build `subsystems/<key>/predict.py` exposing `predict(files)` and `analyze(files)`, plus `artifacts/config.json` with the validation block.
+6. Add one `SubsystemSpec` to `core/registry.py`. The overview, dashboard, validation and submission pages pick it up with no page code.
+""")
+
+
 def submission_page() -> None:
     html(ui.header("Competition deliverable", "Build predictions.zip",
                    "Runs every validated model over the competition test inputs, checks each "
@@ -742,6 +1004,15 @@ digraph G {
                          "Split": "—", "Score": "pending"})
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 
+    html(ui.section("Design method"))
+    st.markdown("""
+The interface follows three rules borrowed from the products operators already use and from Apple's
+Human Interface Guidelines: **clarity** (one verdict per screen, in words, with the action next to it),
+**deference** (the chrome stays quiet so the data reads first), and **depth through progressive
+disclosure** (status strip → verdict card → evidence charts → per-item inspector → raw table).
+Alstom HealthHub and Siemens Railigent X organise fleet health the same way: a real-time fleet board,
+then a drill-down per asset, with the network map as the shared frame. See `DESIGN.md` for sources.
+""")
     html(ui.section("Principles"))
     st.markdown("""
 - **Models encode the physics.** SHM fits the two constants of the S-N curve that generated
@@ -763,14 +1034,22 @@ digraph G {
 """)
 
 
-pages = [
-    st.Page(overview_page, title="Overview", icon=":material/dashboard:", default=True),
-    st.Page(fleet_page, title="Fleet view", icon=":material/map:", url_path="fleet"),
-    st.Page(door_page, title="Door", icon=":material/door_sliding:", url_path="door"),
-    st.Page(shm_page, title="Structural health", icon=":material/architecture:", url_path="shm"),
-    st.Page(rail_page, title="Rail", icon=":material/train:", url_path="rail"),
-    st.Page(acv_page, title="Air conditioning", icon=":material/ac_unit:", url_path="acv"),
-    st.Page(submission_page, title="Submission", icon=":material/inventory_2:", url_path="submission"),
-    st.Page(method_page, title="Method", icon=":material/schema:", url_path="method"),
-]
+pages = {
+    "Monitor": [
+        st.Page(overview_page, title="Dashboard", icon=":material/dashboard:", default=True),
+        st.Page(fleet_page, title="Fleet view", icon=":material/map:", url_path="fleet"),
+        st.Page(door_page, title="Door", icon=":material/door_sliding:", url_path="door"),
+        st.Page(shm_page, title="Structural health", icon=":material/architecture:", url_path="shm"),
+        st.Page(rail_page, title="Rail", icon=":material/train:", url_path="rail"),
+        st.Page(acv_page, title="Air conditioning", icon=":material/ac_unit:", url_path="acv"),
+    ],
+    "Extend": [
+        st.Page(custom_page, title="Parameter monitor", icon=":material/add_chart:", url_path="monitor"),
+    ],
+    "Evidence": [
+        st.Page(validation_page, title="Validation", icon=":material/fact_check:", url_path="validation"),
+        st.Page(submission_page, title="Submission", icon=":material/inventory_2:", url_path="submission"),
+        st.Page(method_page, title="Method", icon=":material/schema:", url_path="method"),
+    ],
+}
 st.navigation(pages, position="top").run()

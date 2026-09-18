@@ -42,9 +42,9 @@ replacing `subsystems/<key>/` (keep `predict()` + `analyze()` and
 | All four scoring formulas | DONE — `scoring/metrics.py`, 28 tests pass |
 | **Door subsystem** | **DONE** — IoU-weighted F1 0.9909 ± 0.0182, smoke test 15/15 |
 | **SHM** | **DONE** — `subsystems/shm/`, 0.9729 ± 0.0067, smoke test 10/10 |
-| **Rail** | **DONE** — `subsystems/rail/`, ported from the teammate's `final_streamlit_app`; macro F1 0.8551 ± 0.0502 (5 grouped folds), Side I recall 0.64 |
+| **Rail** | **DONE** — `subsystems/rail/`, ported from the teammate's `final_streamlit_app`. Honest re-run of the selected recipe on the same 5 grouped folds: **macro F1 0.829 ± 0.059** (their 0.852 was the max over five candidates). Wavelength experiment: null result, baseline kept (`artifacts/experiment_wavelength.json`) |
 | **ACV** | **DONE** — `subsystems/acv/`, ported from the same build; rank decay 0.9792 ± 0.0466 leave-one-case-out (case 04 ranks 2nd) |
-| **Streamlit app** | **DONE** — `app/`, 8 pages incl. Fleet view (live map + LTA/SGMRT feeds), builds predictions.zip for all four. See `app/README.md` |
+| **Streamlit app** | **DONE** — `app/`, 10 pages in 3 menus: summary Dashboard (status strip, Run all, network map with line paths + zones, top events, trends), Fleet view (live feeds), 4 subsystem pages, Parameter monitor (label-free screen for new datasets), Validation (folds, sd, in-sample vs out-of-fold), Submission, Method. `DESIGN.md` records the design method and sources |
 | **predictions.zip** | **DONE** — `predictions/predictions.zip`, four CSVs, schema-validated (38 / 16 / 68 / 1 rows) |
 | Design system | Published |
 | Review of teammate's build | DONE — findings in section 6 |
@@ -335,10 +335,12 @@ forbids that.
 
 1. **Record the ≤3 min demo video** following `app/README.md`; add the Fleet
    view (20 s) after the Overview.
-2. **Rail headroom:** Side I recall is 0.64. The wavelength-domain features
-   (λ = v/f, shown on the Rail page but not yet in the classifier) are the
-   untried lever if time allows. Validate on the same 5 grouped folds
-   (`subsystems/rail/artifacts/oof.csv` has the fold ids).
+2. **Rail headroom:** Side I recall ~0.64. The wavelength-domain band features
+   were tried under a pre-registered protocol (`scripts/rail_wavelength_experiment.py`):
+   −0.004 on the original folds, +0.007 on fresh shuffles, i.e. noise, so the
+   baseline stays. Next ideas, if any: per-axle-box coherence at the dominant
+   wavelength as the *only* side feature, or more Side I examples via the
+   side-swap symmetry evaluated per class. Keep the same folds and decision rule.
 3. **ACV case 04** ranks the true car second; it is the 63-parameter file. Any
    change must keep leave-one-case-out ≥ 0.979.
 4. Regenerate `predictions.zip` through the app or `scripts.build_predictions`

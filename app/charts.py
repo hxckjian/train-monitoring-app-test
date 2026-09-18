@@ -273,3 +273,116 @@ def acv_excess(excess: pd.DataFrame, ranking: list[str]) -> go.Figure:
     fig.update_yaxes(title="°C above the other cars")
     fig.update_xaxes(title="time")
     return _base(fig, 320)
+
+
+# ----------------------------------------------------------- validation
+
+def fold_scores(folds: list[float], mean: float, std: float, baseline: float | None,
+                label: str, in_sample: float | None = None) -> go.Figure:
+    """Per-fold scores as dots, the mean as a line, ±1 sd as a band, the baseline dotted."""
+    fig = go.Figure()
+    x = list(range(1, len(folds) + 1))
+    fig.add_trace(go.Scatter(x=[0.5, len(folds) + 0.5, len(folds) + 0.5, 0.5],
+                             y=[mean - std, mean - std, mean + std, mean + std], fill="toself",
+                             fillcolor="rgba(0,149,236,0.12)", line=dict(width=0), hoverinfo="skip",
+                             name="mean ± 1 sd"))
+    fig.add_trace(go.Scatter(x=x, y=folds, mode="markers", name="held-out fold",
+                             marker=dict(size=12, color=T("series-1"),
+                                         line=dict(color=T("surface-plot"), width=2)),
+                             hovertemplate="fold %{x}<br>" + label + " %{y:.4f}<extra></extra>"))
+    fig.add_hline(y=mean, line=dict(color=T("ink-primary"), width=2))
+    if in_sample is not None:
+        fig.add_hline(y=in_sample, line=dict(color=T("status-watch"), width=1.5, dash="dash"),
+                      annotation_text=f"in-sample {in_sample:.3f}", annotation_position="top left",
+                      annotation_font=dict(size=11, color=T("ink-secondary")))
+    if baseline is not None:
+        fig.add_hline(y=baseline, line=dict(color=T("ink-muted"), width=1.5, dash="dot"),
+                      annotation_text=f"naive baseline {baseline:.3f}",
+                      annotation_position="bottom left",
+                      annotation_font=dict(size=11, color=T("ink-secondary")))
+    fig.update_xaxes(title="fold", dtick=1, range=[0.5, len(folds) + 0.5])
+    lo = min([baseline if baseline is not None else mean] + folds + [in_sample or mean]) - 0.05
+    fig.update_yaxes(title=label, range=[max(0, lo), 1.02])
+    return _base(fig, 280)
+
+
+# --------------------------------------------------------------- trends
+
+def door_trend(g: pd.DataFrame) -> go.Figure:
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+                        subplot_titles=("Abnormal cycles per 5-minute window",
+                                        "Mean sustained current, mA"))
+    fig.add_trace(go.Bar(x=g["window_min"], y=g["abnormal"], name="abnormal",
+                         marker=dict(color=T("status-alert")),
+                         hovertemplate="min %{x}: %{y} abnormal<extra></extra>"), 1, 1)
+    fig.add_trace(go.Bar(x=g["window_min"], y=g["cycles"] - g["abnormal"], name="normal",
+                         marker=dict(color=T("status-ok")),
+                         hovertemplate="min %{x}: %{y} normal<extra></extra>"), 1, 1)
+    fig.add_trace(go.Scatter(x=g["window_min"], y=g["mean_current"], mode="lines+markers",
+                             name="current", line=dict(color=T("series-1"), width=2),
+                             hovertemplate="min %{x}: %{y:.0f} mA<extra></extra>"), 2, 1)
+    fig.update_layout(barmode="stack")
+    fig.update_xaxes(title="minutes from stream start", row=2, col=1)
+    for a in fig.layout.annotations:
+        a.font = dict(size=12, color=T("ink-secondary"))
+        a.x = 0
+        a.xanchor = "left"
+    fig = _base(fig, 340, legend=False)
+    fig.update_layout(margin=dict(l=8, r=8, t=30, b=8))
+    return fig
+
+
+def rail_trend(d: pd.DataFrame) -> go.Figure:
+    fig = go.Figure(go.Bar(
+        x=d["file_id"], y=d["p_corrugated"],
+        marker=dict(color=[T(RAIL_COLOR[p]) for p in d["prediction"]], line=dict(width=0)),
+        customdata=np.c_[d["prediction"], d["speed_km_h"]],
+        hovertemplate="%{x}<br>P(corrugated) %{y:.0%}<br>%{customdata[0]} · "
+                      "%{customdata[1]:.0f} km/h<extra></extra>"))
+    fig.add_hline(y=0.5, line=dict(color=T("ink-muted"), width=1, dash="dot"))
+    fig.update_yaxes(title="P(corrugated)", range=[0, 1])
+    fig.update_xaxes(title="recording", showticklabels=len(d) <= 24)
+    return _base(fig, 260, legend=False)
+
+
+def acv_trend(d: pd.DataFrame) -> go.Figure:
+    fig = go.Figure(go.Bar(x=d["day"], y=d["excess"], marker=dict(color=T("status-alert")),
+                           hovertemplate="%{x|%d %b}: %{y:+.2f} °C<extra></extra>"))
+    fig.add_hline(y=0, line=dict(color=T("ink-primary"), width=1))
+    fig.update_yaxes(title=f"Car {d['car'].iloc[0]} excess, °C / day")
+    return _base(fig, 240, legend=False)
+
+
+def generic_excess(ex: pd.DataFrame, units: list[str], top: str) -> go.Figure:
+    fig = go.Figure()
+    for u in units[::-1]:
+        is_top = u == top
+        fig.add_trace(go.Scatter(x=ex["time"], y=ex[u], mode="lines", name=str(u),
+                                 line=dict(color=T("status-alert") if is_top else T("ink-muted"),
+                                           width=2.5 if is_top else 1),
+                                 opacity=1 if is_top else 0.5,
+                                 hovertemplate=f"{u}<br>%{{y:+.2f}} vs peers<extra></extra>"))
+    fig.add_hline(y=0, line=dict(color=T("ink-primary"), width=1, dash="dot"))
+    fig.update_yaxes(title="excess over the other units")
+    return _base(fig, 300)
+
+
+def generic_drift(d: pd.DataFrame) -> go.Figure:
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+                        subplot_titles=("Value and rolling median",
+                                        "Robust drift score (MAD units)"))
+    fig.add_trace(go.Scatter(x=d["index"], y=d["value"], mode="lines", name="value",
+                             line=dict(color=T("ink-muted"), width=1)), 1, 1)
+    fig.add_trace(go.Scatter(x=d["index"], y=d["rolling_median"], mode="lines",
+                             name="rolling median", line=dict(color=T("series-1"), width=2)), 1, 1)
+    fig.add_trace(go.Scatter(x=d["index"], y=d["robust_z"], mode="lines", name="score",
+                             line=dict(color=T("status-alert"), width=2)), 2, 1)
+    for y in (-3, 3):
+        fig.add_hline(y=y, line=dict(color=T("ink-muted"), width=1, dash="dot"), row=2, col=1)
+    for a in fig.layout.annotations:
+        a.font = dict(size=12, color=T("ink-secondary"))
+        a.x = 0
+        a.xanchor = "left"
+    fig = _base(fig, 380, legend=False)
+    fig.update_layout(margin=dict(l=8, r=8, t=30, b=8))
+    return fig
